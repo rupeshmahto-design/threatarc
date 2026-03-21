@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIOP Threat Assessment Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root {
+  /* severity */
+  --c:#dc2626; --cg:#fef2f2; --cb:#fecaca; --ct:#b91c1c;
+  --h:#ea580c; --hg:#fff7ed; --hb:#fed7aa; --ht:#c2410c;
+  --m:#d97706; --mg:#fffbeb; --mb:#fde68a; --mt:#b45309;
+  --l:#16a34a; --lg:#f0fdf4; --lb:#bbf7d0; --lt:#15803d;
+  --a:#2563eb; --ag:#eff6ff; --ab:#bfdbfe; --at:#1d4ed8;
+  /* neutrals */
+  --bg:#f8f9fb;
+  --white:#ffffff;
+  --surface:#ffffff;
+  --surface2:#f1f5f9;
+  --surface3:#e2e8f0;
+  --bd:#e2e8f0;
+  --bd2:#cbd5e1;
+  --t1:#0f172a;
+  --t2:#475569;
+  --t3:#94a3b8;
+  --t4:#cbd5e1;
+  --nav-w:228px;
+  --shadow-sm:0 1px 3px rgba(15,23,42,0.08),0 1px 2px rgba(15,23,42,0.06);
+  --shadow-md:0 4px 12px rgba(15,23,42,0.08),0 2px 4px rgba(15,23,42,0.05);
+  --shadow-lg:0 12px 32px rgba(15,23,42,0.1),0 4px 8px rgba(15,23,42,0.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Epilogue',sans-serif;background:var(--bg);color:var(--t1);display:flex;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ─── NAV ─── */
+nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);background:var(--white);border-right:1px solid var(--bd);z-index:100;display:flex;flex-direction:column;overflow-y:auto}
+.nav-brand{padding:20px 18px 16px;border-bottom:1px solid var(--bd)}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,0.3)}
+.nav-logo-text{font-size:13px;font-weight:800;color:var(--t1);letter-spacing:-0.2px}
+.nav-logo-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:1px}
+.nav-risk-badge{margin:12px 14px 0;padding:12px 14px;background:var(--cg);border:1px solid var(--cb);border-radius:10px;text-align:center}
+.nav-risk-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ct);text-transform:uppercase;letter-spacing:0.8px;font-weight:500}
+.nav-risk-val{font-size:20px;font-weight:800;color:var(--c);line-height:1.1;margin-top:2px;letter-spacing:-0.5px}
+.nav-risk-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ct);margin-top:2px}
+.nav-section-label{padding:16px 18px 5px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:0.8px;font-weight:500}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 18px;font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;transition:all 0.15s;text-decoration:none;border-left:2px solid transparent}
+.nav-item:hover{background:var(--surface2);color:var(--t1)}
+.nav-item.active{background:var(--ag);color:var(--a);border-left-color:var(--a)}
+.nav-item-icon{font-size:13px;width:17px;text-align:center;flex-shrink:0}
+.nav-count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 6px;border-radius:8px;font-weight:500}
+.nav-count.c{background:var(--cg);color:var(--c)}
+.nav-count.h{background:var(--hg);color:var(--h)}
+.nav-count.ok{background:var(--lg);color:var(--l)}
+.nav-count.a{background:var(--ag);color:var(--a)}
+.nav-footer{margin-top:auto;padding:14px 18px;border-top:1px solid var(--bd);font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);line-height:1.8}
+
+/* ─── MAIN ─── */
+main{margin-left:var(--nav-w);flex:1}
+.page-section{padding:36px 40px;border-bottom:1px solid var(--bd)}
+.section-heading{display:flex;align-items:flex-start;gap:14px;margin-bottom:26px}
+.section-num{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--ag);color:var(--a);border:1px solid var(--ab);padding:3px 9px;border-radius:5px;letter-spacing:0.3px;white-space:nowrap;margin-top:3px;font-weight:600}
+.section-title{font-size:20px;font-weight:800;color:var(--t1);letter-spacing:-0.4px;line-height:1.2}
+.section-sub{font-size:12px;color:var(--t3);margin-top:4px;line-height:1.5}
+
+/* ─── OVERVIEW HERO ─── */
+#overview{background:var(--white)}
+.alert-banner{background:var(--cg);border:1px solid var(--cb);border-radius:12px;padding:18px 22px;margin-bottom:22px;display:flex;align-items:flex-start;gap:16px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.alert-banner::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c);border-radius:0}
+.alert-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.alert-title{font-size:13px;font-weight:800;color:var(--ct);text-transform:uppercase;letter-spacing:0.3px}
+.alert-desc{font-size:12px;color:var(--ht);margin-top:4px;line-height:1.65;max-width:760px}
+.alert-counts{display:flex;gap:20px;margin-top:12px;flex-wrap:wrap}
+.ac-item{text-align:center;background:var(--white);border:1px solid var(--cb);border-radius:8px;padding:8px 14px}
+.ac-val{font-size:20px;font-weight:800;line-height:1;letter-spacing:-0.5px}
+.ac-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:0.4px}
+.meta-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:24px;box-shadow:var(--shadow-sm)}
+.meta-cell{background:var(--white);padding:14px 16px}
+.meta-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+.meta-val{font-size:13px;font-weight:600;color:var(--t1);margin-top:4px}
+
+/* ─── DOMAIN CARDS ─── */
+.domains-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.dc{background:var(--white);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;cursor:pointer;transition:all 0.18s;position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.dc:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);border-color:var(--bd2)}
+.dc::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px}
+.dc.c::after{background:var(--c)}.dc.h::after{background:var(--h)}.dc.m::after{background:var(--m)}.dc.ok::after{background:var(--l)}
+.dc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.dc-name{font-size:12px;font-weight:700;color:var(--t1);line-height:1.35}
+.dc-issues{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:3px}
+.dc-grade{font-size:18px;font-weight:800;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.dc-grade.c{background:var(--cg);color:var(--c);border:1px solid var(--cb)}
+.dc-grade.h{background:var(--hg);color:var(--h);border:1px solid var(--hb)}
+.dc-grade.m{background:var(--mg);color:var(--m);border:1px solid var(--mb)}
+.dc-grade.ok{background:var(--lg);color:var(--l);border:1px solid var(--lb)}
+.dc-bar{height:4px;background:var(--surface3);border-radius:2px;margin-bottom:7px}
+.dc-fill{height:100%;border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.dc-score-row{display:flex;justify-content:space-between}
+.dc-score{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2);font-weight:500}
+.dc-trend{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600}
+
+/* ─── PILLS / BADGES ─── */
+.pill{display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;padding:3px 9px;border-radius:10px;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;border:1px solid transparent}
+.pill.c{background:var(--cg);color:var(--c);border-color:var(--cb)}
+.pill.h{background:var(--hg);color:var(--h);border-color:var(--hb)}
+.pill.m{background:var(--mg);color:var(--m);border-color:var(--mb)}
+.pill.ok{background:var(--lg);color:var(--l);border-color:var(--lb)}
+.pill.a{background:var(--ag);color:var(--a);border-color:var(--ab)}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;background:var(--surface2);color:var(--t2);border-radius:4px;border:1px solid var(--bd);display:inline-block;font-weight:500}
+
+/* ─── CARD BASE ─── */
+.card{background:var(--white);border:1px solid var(--bd);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--white)}
+.card-title{font-size:13px;font-weight:800;color:var(--t1);letter-spacing:-0.2px}
+.card-sub{font-size:11px;color:var(--t3);margin-top:2px}
+.card-body{padding:22px}
+
+/* ─── MITRE MAP ─── */
+.mitre-scroll{overflow-x:auto;padding:2px}
+.mitre-wrap{display:flex;gap:3px;min-width:1140px}
+.mitre-col{flex:1;min-width:82px}
+.mitre-head{background:var(--ag);border:1px solid var(--ab);border-radius:6px 6px 0 0;padding:8px 7px;text-align:center;margin-bottom:3px}
+.mitre-head-id{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--a);font-weight:600;letter-spacing:0.3px}
+.mitre-head-name{font-size:10px;font-weight:700;color:var(--t1);margin-top:2px;line-height:1.3}
+.mitre-cell{border-radius:5px;padding:7px 8px;margin-bottom:2px;cursor:pointer;transition:all 0.15s;border:1px solid transparent;font-size:10px;line-height:1.35}
+.mitre-cell:hover{transform:scale(1.02);box-shadow:var(--shadow-md)}
+.mitre-cell.c{background:var(--cg);border-color:var(--cb);color:var(--ct)}
+.mitre-cell.h{background:var(--hg);border-color:var(--hb);color:var(--ht)}
+.mitre-cell.m{background:var(--mg);border-color:var(--mb);color:var(--mt)}
+.mitre-cid{font-family:'JetBrains Mono',monospace;font-size:8px;display:block;margin-bottom:2px;font-weight:500;opacity:0.75}
+.mitre-cname{font-size:10px;font-weight:600}
+.mitre-score{display:block;font-family:'JetBrains Mono',monospace;font-size:8px;margin-top:3px;opacity:0.7}
+.scroll-hint{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:8px;text-align:center}
+
+/* ─── ATTACK PATH ─── */
+.ap-tabs{display:flex;gap:2px;margin-bottom:18px;background:var(--surface2);border-radius:8px;padding:3px;width:fit-content;border:1px solid var(--bd)}
+.ap-tab{padding:7px 16px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;color:var(--t2);background:transparent}
+.ap-tab.active{background:var(--white);color:var(--a);box-shadow:var(--shadow-sm)}
+.ap-tab:hover:not(.active){color:var(--t1)}
+.ap-panel{display:none}.ap-panel.active{display:block}
+.ap-legend{display:flex;gap:20px;padding:14px 20px;border-top:1px solid var(--bd);flex-wrap:wrap;background:var(--surface2)}
+.ap-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t2);font-weight:500}
+.ap-dot{width:9px;height:9px;border-radius:50%}
+
+/* Node tooltip */
+.node-tooltip{position:fixed;z-index:999;background:var(--white);border:1px solid var(--bd2);border-radius:10px;padding:14px 16px;max-width:300px;pointer-events:none;display:none;box-shadow:var(--shadow-lg)}
+.node-tooltip.vis{display:block}
+.nt-title{font-size:12px;font-weight:800;color:var(--t1);margin-bottom:8px}
+.nt-row{display:flex;gap:8px;margin-bottom:4px;font-size:11px;align-items:flex-start}
+.nt-label{color:var(--t3);font-family:'JetBrains Mono',monospace;min-width:64px;flex-shrink:0;font-size:9px;text-transform:uppercase;margin-top:1px;font-weight:500}
+.nt-val{color:var(--t2);line-height:1.45}
+.nt-quote{background:var(--surface2);border-left:2px solid var(--a);padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t1);border-radius:0 4px 4px 0;margin-top:4px;line-height:1.6}
+
+/* ─── KILL CHAIN ─── */
+.kc-wrap{overflow-x:auto}
+.kc-phases{display:flex;min-width:900px;gap:0;padding:8px 0 4px}
+.kc-phase{flex:1;min-width:110px;padding:0 8px;position:relative;text-align:center}
+.kc-phase+.kc-phase::before{content:'›';position:absolute;left:-6px;top:22px;color:var(--t3);font-size:18px;line-height:1}
+.kc-icon{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:19px;border:2px solid transparent;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;box-shadow:var(--shadow-sm)}
+.kc-icon:hover{transform:scale(1.12);box-shadow:var(--shadow-md)}
+.kc-phase-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-family:'JetBrains Mono',monospace;color:var(--t2)}
+.kc-detail{font-size:10px;color:var(--t3);margin-top:5px;line-height:1.55;padding:0 4px}
+.kc-doc{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--a);margin-top:5px;display:block;opacity:0.8;font-weight:500}
+.kc-window{font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:4px;margin-top:5px;display:inline-block;font-weight:600}
+.kc-window.c{background:var(--cg);color:var(--c);border:1px solid var(--cb)}
+.kc-window.n{background:var(--mg);color:var(--m);border:1px solid var(--mb)}
+
+/* ─── FINDINGS ─── */
+.filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filter-search{flex:1;min-width:200px;background:var(--white);border:1px solid var(--bd2);border-radius:8px;padding:9px 14px;color:var(--t1);font-family:'Epilogue',sans-serif;font-size:12px;outline:none;box-shadow:var(--shadow-sm);transition:border-color 0.15s}
+.filter-search:focus{border-color:var(--a)}
+.filter-search::placeholder{color:var(--t3)}
+.fbtn{padding:7px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--white);color:var(--t2);font-size:11px;font-family:'Epilogue',sans-serif;cursor:pointer;transition:all 0.15s;font-weight:600;box-shadow:var(--shadow-sm)}
+.fbtn:hover{background:var(--surface2);color:var(--t1)}
+.fbtn.fa{background:var(--ag);color:var(--a);border-color:var(--ab)}
+.fbtn.fc{background:var(--cg);color:var(--c);border-color:var(--cb)}
+.fbtn.fh{background:var(--hg);color:var(--h);border-color:var(--hb)}
+.fbtn.fm{background:var(--mg);color:var(--m);border-color:var(--mb)}
+.find-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);margin-bottom:10px;font-weight:500}
+.table-wrap{background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--t3);text-align:left;border-bottom:1px solid var(--bd);background:var(--surface2);cursor:pointer;user-select:none;white-space:nowrap;font-weight:600}
+th:hover{color:var(--t2)}
+th.sorted{color:var(--a)}
+td{padding:12px 16px;border-bottom:1px solid var(--bd);vertical-align:middle;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr.fr{cursor:pointer;transition:background 0.1s}
+tr.fr:hover td{background:var(--surface2)}
+.fid{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--a);white-space:nowrap;font-weight:600}
+.ftitle{font-weight:700;color:var(--t1);font-size:12px}
+.fdoc{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:2px;font-weight:500}
+.ftactic{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2);font-weight:500}
+.fscore{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800}
+
+/* ─── RISK MATRIX ─── */
+.risk-matrix{display:grid;grid-template-columns:170px repeat(4,1fr);background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.rm-corner{padding:12px 14px;background:var(--surface2);border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);display:flex;align-items:flex-end;font-weight:500}
+.rm-ch{padding:11px 8px;background:var(--surface2);border-left:1px solid var(--bd);border-bottom:1px solid var(--bd);text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;font-weight:600}
+.rm-rl{padding:14px;border-right:1px solid var(--bd);border-bottom:1px solid var(--bd);background:var(--white)}
+.rm-rl:last-of-type{border-bottom:none}
+.rm-rt{font-size:11px;font-weight:700;color:var(--t1);line-height:1.4}
+.rm-rs{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:3px;font-weight:500}
+.rm-cell{border-left:1px solid var(--bd);border-bottom:1px solid var(--bd);padding:14px 10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:background 0.12s;background:var(--white)}
+.rm-cell:hover{background:var(--surface2)}
+.rm-cnt{font-size:20px;font-weight:800;line-height:1;font-family:'JetBrains Mono',monospace;letter-spacing:-0.5px}
+.rm-lbl{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--t3);text-transform:uppercase;font-weight:500}
+
+/* ─── SPECIALIZED CARDS ─── */
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.spec-card{background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.spec-header{padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2)}
+.spec-title-row{display:flex;align-items:center;gap:9px}
+.spec-icon{font-size:17px}
+.spec-title{font-size:13px;font-weight:800;color:var(--t1)}
+.spec-sub{font-size:10px;color:var(--t3);margin-top:1px}
+.spec-item{padding:9px 18px;border-bottom:1px solid rgba(0,0,0,0.04);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.spec-item:last-child{border-bottom:none}
+.spec-item-lbl{font-size:11px;color:var(--t2);font-weight:500}
+.spec-item-val{font-family:'JetBrains Mono',monospace;font-size:10px;text-align:right;flex-shrink:0;font-weight:600}
+
+/* ─── COMPONENTS ─── */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.comp-card{background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.comp-header{padding:14px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface2)}
+.comp-row{padding:9px 18px;border-bottom:1px solid rgba(0,0,0,0.04);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.comp-row:last-child{border-bottom:none}
+.comp-row-lbl{font-size:11px;color:var(--t2);font-weight:500}
+.comp-row-val{font-size:10px;text-align:right;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-weight:500}
+
+/* ─── RECOMMENDATIONS ─── */
+.rec-tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.rtab{padding:8px 16px;border-radius:8px;border:1px solid var(--bd2);background:var(--white);color:var(--t2);font-size:11px;font-family:'Epilogue',sans-serif;cursor:pointer;transition:all 0.15s;font-weight:700;box-shadow:var(--shadow-sm)}
+.rtab.rc{background:var(--cg);color:var(--c);border-color:var(--cb)}
+.rtab.rh{background:var(--hg);color:var(--h);border-color:var(--hb)}
+.rtab.rm{background:var(--mg);color:var(--m);border-color:var(--mb)}
+.rtab:not(.rc):not(.rh):not(.rm):hover{background:var(--surface2)}
+.rec-panel{display:none}.rec-panel.active{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rec-card{background:var(--white);border:1px solid var(--bd);border-radius:12px;padding:18px;box-shadow:var(--shadow-sm);transition:all 0.18s}
+.rec-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.rec-card.p0{border-top:3px solid var(--c)}
+.rec-card.p1{border-top:3px solid var(--h)}
+.rec-card.p2{border-top:3px solid var(--m)}
+.rec-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.rec-badge{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;border-radius:4px;font-weight:700;flex-shrink:0;margin-top:2px}
+.rec-badge.p0{background:var(--cg);color:var(--c);border:1px solid var(--cb)}
+.rec-badge.p1{background:var(--hg);color:var(--h);border:1px solid var(--hb)}
+.rec-badge.p2{background:var(--mg);color:var(--m);border:1px solid var(--mb)}
+.rec-title{font-size:13px;font-weight:700;color:var(--t1);line-height:1.45}
+.rec-steps{list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.rec-steps li{display:flex;gap:9px;font-size:11px;color:var(--t2);line-height:1.45}
+.rec-steps li::before{content:attr(data-n);font-family:'JetBrains Mono',monospace;font-size:8px;background:var(--surface2);color:var(--a);width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;border:1px solid var(--ab);font-weight:600}
+.rec-foot{display:flex;align-items:center;gap:12px;padding-top:10px;border-top:1px solid var(--bd)}
+.rec-effort{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);font-weight:500}
+.rec-bar-row{flex:1;display:flex;align-items:center;gap:8px}
+.rec-bar{flex:1;height:4px;background:var(--surface3);border-radius:2px}
+.rec-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.rec-pct{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700}
+
+/* ─── COMPLIANCE ─── */
+.comp-posture{background:var(--white);border:1px solid var(--bd);border-radius:12px;padding:20px;box-shadow:var(--shadow-sm)}
+.pos-item{margin-bottom:14px}
+.pos-item:last-child{margin-bottom:0}
+.pos-row{display:flex;justify-content:space-between;margin-bottom:5px;align-items:center}
+.pos-name{font-size:12px;font-weight:700;color:var(--t1)}
+.pos-status{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600}
+.pos-bar{height:5px;background:var(--surface3);border-radius:3px}
+.pos-fill{height:100%;border-radius:3px;transition:width 1.2s ease}
+.comp-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.compliance-table-wrap{background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+
+/* ─── MODAL ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.4);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border:1px solid var(--bd2);border-radius:16px;max-width:680px;width:92%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:flex-start;justify-content:space-between;gap:14px;position:sticky;top:0;background:var(--white);z-index:2}
+.modal-close{background:var(--surface2);border:1px solid var(--bd);color:var(--t2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:all 0.15s}
+.modal-close:hover{background:var(--surface3);color:var(--t1)}
+.modal-body{padding:18px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.m-block-title{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;font-weight:600}
+.m-quote{background:var(--surface2);border-left:3px solid var(--a);padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t1);border-radius:0 6px 6px 0;line-height:1.65;font-weight:500}
+.m-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-info-item{}
+.m-info-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;margin-bottom:3px;font-weight:600}
+.m-info-val{font-size:13px;color:var(--t2);font-weight:600}
+.m-steps{list-style:none;display:flex;flex-direction:column;gap:7px}
+.m-steps li{display:flex;gap:10px;font-size:12px;color:var(--t2);line-height:1.5}
+.m-steps li::before{content:attr(data-n);font-family:'JetBrains Mono',monospace;font-size:9px;background:var(--ag);color:var(--a);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;border:1px solid var(--ab);font-weight:700}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp 0.45s ease forwards;opacity:0}
+@media(max-width:1100px){.domains-grid{grid-template-columns:1fr 1fr}.spec-grid,.comp-grid,.rec-panel.active,.comp-2col{grid-template-columns:1fr}.meta-strip{grid-template-columns:1fr 1fr}}
+/* ─── ACTION PLAN SYSTEM ─── */
+.ap-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all 0.15s;border:1px solid var(--ab);background:var(--ag);color:var(--a);white-space:nowrap;vertical-align:middle}
+.ap-btn:hover{background:var(--a);color:white;border-color:var(--a)}
+.ap-btn.in-plan{background:var(--lg);color:var(--l);border-color:var(--lb)}
+.ap-btn.in-plan:hover{background:var(--l);color:white;border-color:var(--l)}
+.ap-fab{position:fixed;bottom:28px;right:28px;z-index:200;background:var(--a);color:white;border:none;border-radius:14px;padding:12px 20px;font-family:'Epilogue',sans-serif;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,0.4);display:flex;align-items:center;gap:10px;transition:all 0.2s}
+.ap-fab:hover{background:var(--at);transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,99,235,0.45)}
+.ap-fab-badge{background:white;color:var(--a);font-size:11px;font-weight:800;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace}
+.ap-fab.hidden{display:none}
+.ap-item-card{background:var(--white);border:1px solid var(--bd);border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.ap-item-card.p0-b{border-left:3px solid var(--c)}.ap-item-card.p1-b{border-left:3px solid var(--h)}.ap-item-card.p2-b{border-left:3px solid var(--m)}
+.ap-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px;background:var(--white)}
+.ap-item-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:10px 16px 14px;border-top:1px solid var(--bd);background:var(--surface2)}
+.ap-meta-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:3px;display:block}
+.ap-meta-input{width:100%;background:var(--white);border:1px solid var(--bd2);border-radius:6px;padding:6px 9px;font-family:'Epilogue',sans-serif;font-size:11px;color:var(--t1);outline:none;transition:border-color 0.15s;font-weight:500}
+.ap-meta-input:focus{border-color:var(--a)}
+.ap-meta-input::placeholder{color:var(--t4)}
+.ap-steps-mini{padding:10px 16px 12px;background:var(--surface2);border-top:1px solid var(--bd);list-style:none;display:flex;flex-direction:column;gap:5px}
+.ap-steps-mini li{font-size:11px;color:var(--t2);display:flex;gap:7px;align-items:flex-start;line-height:1.45}
+.ap-steps-mini li::before{content:attr(data-n);font-family:'JetBrains Mono',monospace;font-size:8px;background:var(--ag);color:var(--a);min-width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;border:1px solid var(--ab);font-weight:700}
+.ap-rm{background:none;border:none;cursor:pointer;color:var(--t3);font-size:14px;padding:2px 5px;border-radius:4px;transition:all 0.15s;flex-shrink:0}
+.ap-rm:hover{background:var(--cg);color:var(--c)}
+.ap-sum-row{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.ap-sum-stat{background:var(--white);border:1px solid var(--bd);border-radius:10px;padding:14px 18px;text-align:center;flex:1;min-width:90px;box-shadow:var(--shadow-sm)}
+.ap-sum-num{font-size:24px;font-weight:800;line-height:1;letter-spacing:-0.5px}
+.ap-sum-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);margin-top:3px;text-transform:uppercase}
+.ap-toolbar{display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap}
+.ap-export-btn{display:flex;align-items:center;gap:7px;padding:10px 18px;background:var(--t1);color:white;border:none;border-radius:8px;font-family:'Epilogue',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.18s;box-shadow:var(--shadow-sm)}
+.ap-export-btn:hover{background:#1e293b;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.ap-clear-btn{padding:9px 16px;background:var(--white);border:1px solid var(--bd2);border-radius:8px;font-family:'Epilogue',sans-serif;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;transition:all 0.15s}
+.ap-clear-btn:hover{background:var(--cg);color:var(--c);border-color:var(--cb)}
+.ap-empty{text-align:center;padding:56px 20px;color:var(--t3)}
+.ap-empty-icon{font-size:40px;margin-bottom:14px}
+.ap-empty-title{font-size:16px;font-weight:700;color:var(--t2);margin-bottom:6px}
+.ap-empty-sub{font-size:13px;line-height:1.65}
+.tr-planned td{background:#f0fdf4 !important}
+</style>
+</head>
+<body>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">🛡</div>
+      <div>
+        <div class="nav-logo-text">ThreatVision AI</div>
+        <div class="nav-logo-sub">Powered by Claude Sonnet 4</div>
+      </div>
+    </div>
+    <div class="nav-risk-badge">
+      <div class="nav-risk-label">Overall Rating</div>
+      <div class="nav-risk-val">CRITICAL</div>
+      <div class="nav-risk-sub">Score 20–25 / 25</div>
+    </div>
+  </div>
+  <div class="nav-section-label">Report Sections</div>
+  <a class="nav-item active" href="#overview" data-s="overview"><span class="nav-item-icon">📋</span>Overview &amp; Scorecard<span class="nav-count c">35</span></a>
+  <a class="nav-item" href="#mitre" data-s="mitre"><span class="nav-item-icon">🗺</span>MITRE ATT&amp;CK Map<span class="nav-count c">22</span></a>
+  <a class="nav-item" href="#attack-paths" data-s="attack-paths"><span class="nav-item-icon">🔗</span>Attack Paths<span class="nav-count c">2</span></a>
+  <a class="nav-item" href="#kill-chain" data-s="kill-chain"><span class="nav-item-icon">⛓</span>Kill Chain Analysis</a>
+  <a class="nav-item" href="#findings" data-s="findings"><span class="nav-item-icon">🔍</span>All Findings<span class="nav-count c">35</span></a>
+  <a class="nav-item" href="#matrix" data-s="matrix"><span class="nav-item-icon">📊</span>Risk Priority Matrix</a>
+  <a class="nav-item" href="#specialized" data-s="specialized"><span class="nav-item-icon">🤖</span>AI Risk Assessment<span class="nav-count c">20</span></a>
+  <a class="nav-item" href="#components" data-s="components"><span class="nav-item-icon">🏗</span>Component Analysis<span class="nav-count h">6</span></a>
+  <a class="nav-item" href="#recommendations" data-s="recommendations"><span class="nav-item-icon">✅</span>Recommendations<span class="nav-count ok">22</span></a>
+  <a class="nav-item" href="#compliance" data-s="compliance"><span class="nav-item-icon">📜</span>Compliance Mapping</a>
+  <a class="nav-item" href="#action-plan" data-s="action-plan"><span class="nav-item-icon">📋</span>Action Plan<span class="nav-count a" id="navApCount" style="display:none">0</span></a>
+  <div class="nav-footer">
+    AIOP Threat Assessment<br>
+    March 20, 2026 · v1.0<br>
+    Framework: MITRE ATT&amp;CK v14<br>
+    Deployment: AWS · Production
+  </div>
+</nav>
+
+<main>
+
+<!-- ═══ OVERVIEW ═══ -->
+<section class="page-section fade-in" id="overview">
+  <div class="section-heading">
+    <span class="section-num">01</span>
+    <div>
+      <div class="section-title">Overview &amp; Risk Scorecard</div>
+      <div class="section-sub">Enterprise AI Operations Platform (AIOP) · 150+ Autonomous Agents · $250M+ Annual Revenue Impact · 50 Enterprise Clients</div>
+    </div>
+  </div>
+
+  <div class="alert-banner">
+    <div class="alert-icon">⚠️</div>
+    <div>
+      <div class="alert-title">Overall Risk Rating: CRITICAL — Immediate Action Required</div>
+      <div class="alert-desc">This threat assessment analyzed a mission-critical system deploying 150+ autonomous AI agents across Fortune 500 clients. The autonomous agent architecture introduces unprecedented attack surfaces — agents capable of executing $100K financial transactions, managing infrastructure, and processing 2M+ customer PII records with limited human oversight. Comprehensive documentation including project overview, system architecture (02_System_Architecture.md), data flows (03_Data_Flow_Diagram.md), and API specifications (04_API_Specification.md) was reviewed.</div>
+      <div class="alert-counts">
+        <div class="ac-item"><div class="ac-val" style="color:var(--c)">8</div><div class="ac-label">P0 Critical</div></div>
+        <div class="ac-item"><div class="ac-val" style="color:var(--h)">12</div><div class="ac-label">P1 High</div></div>
+        <div class="ac-item"><div class="ac-val" style="color:var(--m)">15</div><div class="ac-label">P2 Medium</div></div>
+        <div class="ac-item"><div class="ac-val" style="color:var(--t2)">35</div><div class="ac-label">Total Findings</div></div>
+        <div class="ac-item"><div class="ac-val" style="color:var(--a)">12</div><div class="ac-label">ATT&amp;CK Tactics</div></div>
+        <div class="ac-item"><div class="ac-val" style="color:var(--a)">22</div><div class="ac-label">TTPs Identified</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meta-strip" style="margin-bottom:22px">
+    <div class="meta-cell"><div class="meta-label">Project</div><div class="meta-val">AIOP (Enterprise AI Ops)</div></div>
+    <div class="meta-cell"><div class="meta-label">Application Type</div><div class="meta-val">Web Application · Cloud AWS</div></div>
+    <div class="meta-cell"><div class="meta-label">Business Criticality</div><div class="meta-val" style="color:var(--c)">Critical · Production</div></div>
+    <div class="meta-cell"><div class="meta-label">Compliance Requirements</div><div class="meta-val">SOC 2 · NIST · HIPAA</div></div>
+    <div class="meta-cell"><div class="meta-label">Agents Deployed</div><div class="meta-val">150+ Autonomous Agents</div></div>
+    <div class="meta-cell"><div class="meta-label">Revenue Impact</div><div class="meta-val">$250M+ Annually</div></div>
+    <div class="meta-cell"><div class="meta-label">Downtime Cost</div><div class="meta-val" style="color:var(--c)">$500K / Hour</div></div>
+    <div class="meta-cell"><div class="meta-label">Assessment Date</div><div class="meta-val">Feb 13 · Mar 20, 2026</div></div>
+  </div>
+
+  <div class="domains-grid">
+    <div class="dc c"><div class="dc-top"><div><div class="dc-name">Agent Autonomy Controls</div><div class="dc-issues">8 critical · 0–30 days</div></div><div class="dc-grade c">D</div></div><div class="dc-bar"><div class="dc-fill" data-w="22" style="background:var(--c);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">2.2 / 10.0</span><span class="dc-trend" style="color:var(--c)">↓ CRITICAL</span></div></div>
+    <div class="dc c"><div class="dc-top"><div><div class="dc-name">Prompt Injection Defense</div><div class="dc-issues">5 findings · 0–30 days</div></div><div class="dc-grade c">D</div></div><div class="dc-bar"><div class="dc-fill" data-w="30" style="background:var(--c);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">3.0 / 10.0</span><span class="dc-trend" style="color:var(--c)">↓ 1.2</span></div></div>
+    <div class="dc c"><div class="dc-top"><div><div class="dc-name">PII &amp; Data Protection</div><div class="dc-issues">4 critical · External LLM APIs</div></div><div class="dc-grade c">D</div></div><div class="dc-bar"><div class="dc-fill" data-w="35" style="background:var(--c);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">3.5 / 10.0</span><span class="dc-trend" style="color:var(--c)">↓ CRITICAL</span></div></div>
+    <div class="dc h"><div class="dc-top"><div><div class="dc-name">Audit Logging &amp; Monitoring</div><div class="dc-issues">4 high · Audit trail gaps</div></div><div class="dc-grade h">C</div></div><div class="dc-bar"><div class="dc-fill" data-w="45" style="background:var(--h);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">4.5 / 10.0</span><span class="dc-trend" style="color:var(--h)">↓ 0.6</span></div></div>
+    <div class="dc h"><div class="dc-top"><div><div class="dc-name">Model Security</div><div class="dc-issues">5 high · Drift / Hallucination</div></div><div class="dc-grade h">C</div></div><div class="dc-bar"><div class="dc-fill" data-w="50" style="background:var(--h);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">5.0 / 10.0</span><span class="dc-trend" style="color:var(--h)">↓ 0.3</span></div></div>
+    <div class="dc h"><div class="dc-top"><div><div class="dc-name">Identity &amp; Access Mgmt</div><div class="dc-issues">3 high · Token manipulation</div></div><div class="dc-grade h">C</div></div><div class="dc-bar"><div class="dc-fill" data-w="55" style="background:var(--h);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">5.5 / 10.0</span><span class="dc-trend" style="color:var(--h)">↓ 0.4</span></div></div>
+    <div class="dc m"><div class="dc-top"><div><div class="dc-name">Encryption &amp; Transit Sec.</div><div class="dc-issues">2 medium · TLS / Key mgmt</div></div><div class="dc-grade m">B</div></div><div class="dc-bar"><div class="dc-fill" data-w="72" style="background:var(--m);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">7.2 / 10.0</span><span class="dc-trend" style="color:var(--m)">→ 0.0</span></div></div>
+    <div class="dc ok"><div class="dc-top"><div><div class="dc-name">Network &amp; API Filtering</div><div class="dc-issues">2 medium · Rate limiting</div></div><div class="dc-grade ok">B</div></div><div class="dc-bar"><div class="dc-fill" data-w="82" style="background:var(--l);width:0%"></div></div><div class="dc-score-row"><span class="dc-score">8.2 / 10.0</span><span class="dc-trend" style="color:var(--l)">↑ 0.2</span></div></div>
+  </div>
+</section>
+
+<!-- ═══ MITRE ═══ -->
+<section class="page-section" id="mitre">
+  <div class="section-heading"><span class="section-num">02</span><div><div class="section-title">MITRE ATT&amp;CK Coverage Map</div><div class="section-sub">All 12 tactics · 22 techniques identified from your report · Click any cell to open the related finding</div></div></div>
+  <div class="card"><div class="card-body" style="padding:16px"><div class="mitre-scroll"><div class="mitre-wrap" id="mitreMap"></div></div><div class="scroll-hint">← Scroll to view all 12 tactics →</div></div></div>
+</section>
+
+<!-- ═══ ATTACK PATHS ═══ -->
+<section class="page-section" id="attack-paths">
+  <div class="section-heading"><span class="section-num">03</span><div><div class="section-title">Attack Path Visualization</div><div class="section-sub">Hover any node for document evidence from your uploaded files · Click nodes to open findings · Two critical scenarios</div></div></div>
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">Scenario 1 — Prompt Injection → Financial Fraud</div><div class="card-sub">Internet email → SendGrid Webhook → Customer Service Agent → Financial Agent ($100K unauthorized transactions)</div></div>
+      <span class="pill c">Critical · Score 20/25</span>
+    </div>
+    <div class="card-body">
+      <div class="ap-tabs">
+        <div class="ap-tab active" onclick="swapAp(this,'ap1')">Prompt Injection Path</div>
+        <div class="ap-tab" onclick="swapAp(this,'ap2')">Multi-Agent Propagation</div>
+      </div>
+
+      <!-- SVG 1 -->
+      <div class="ap-panel active" id="ap1">
+        <svg viewBox="0 0 1060 290" xmlns="http://www.w3.org/2000/svg" width="100%" style="min-width:800px;overflow:visible">
+          <defs>
+            <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#dc2626" opacity="0.9"/></marker>
+            <marker id="ao" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ea580c" opacity="0.9"/></marker>
+            <marker id="ag2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" opacity="0.8"/></marker>
+            <filter id="sh1"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(220,38,38,0.25)"/></filter>
+            <filter id="sh2"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(234,88,12,0.2)"/></filter>
+          </defs>
+          <!-- connection lines -->
+          <line x1="90" y1="145" x2="188" y2="145" stroke="#dc2626" stroke-width="2" opacity="0.5" marker-end="url(#ar)"/>
+          <line x1="260" y1="145" x2="355" y2="145" stroke="#dc2626" stroke-width="2" opacity="0.5" marker-end="url(#ar)"/>
+          <line x1="425" y1="145" x2="515" y2="145" stroke="#dc2626" stroke-width="2" opacity="0.5" marker-end="url(#ar)"/>
+          <path d="M 568 118 Q 608 68 652 68" stroke="#dc2626" stroke-width="2" fill="none" opacity="0.6" marker-end="url(#ar)"/>
+          <path d="M 568 165 Q 608 195 652 205" stroke="#ea580c" stroke-width="2" fill="none" opacity="0.5" marker-end="url(#ao)"/>
+          <path d="M 722 68 Q 762 68 798 118" stroke="#dc2626" stroke-width="2" fill="none" opacity="0.6" marker-end="url(#ar)"/>
+          <path d="M 722 205 Q 762 205 798 172" stroke="#ea580c" stroke-width="1.5" fill="none" stroke-dasharray="5,3" opacity="0.4" marker-end="url(#ao)"/>
+          <line x1="870" y1="125" x2="960" y2="82" stroke="#dc2626" stroke-width="2" opacity="0.7" marker-end="url(#ar)"/>
+          <line x1="870" y1="165" x2="960" y2="218" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.5" marker-end="url(#ag2)"/>
+
+          <!-- Internet -->
+          <g class="ap-node" transform="translate(52,130)" style="cursor:pointer" data-title="Internet Origin" data-sev="INFO" data-doc="Entry Point" data-evidence="Attacker sends crafted phishing email via public internet to customer-facing email endpoint" data-impact="Initial foothold — public attack surface" data-ref="">
+            <circle r="36" fill="white" stroke="#e2e8f0" stroke-width="2"/><circle r="29" fill="#eff6ff"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="18">🌐</text>
+            <text y="52" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono" font-weight="500">Internet</text>
+          </g>
+          <!-- Malicious Email -->
+          <g class="ap-node" transform="translate(223,130)" style="cursor:pointer" filter="url(#sh1)" data-title="Malicious Email — T1566.001" data-sev="CRITICAL" data-doc="03_Data_Flow_Diagram.md — Customer Service Flow" data-evidence='"Email content passed to LLM (potential prompt injection)" — SendGrid Webhook delivers crafted content directly to Customer Service Agent' data-impact="Initial access vector — spearphishing via email (T1566.001) — Risk Score 20/25" data-ref="T1566.001">
+            <circle r="33" fill="white" stroke="#dc2626" stroke-width="2.5"/><circle r="26" fill="#fef2f2"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="17">📧</text>
+            <text y="48" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Malicious</text><text y="59" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Email</text>
+          </g>
+          <!-- SendGrid -->
+          <g class="ap-node" transform="translate(390,130)" style="cursor:pointer" data-title="SendGrid Webhook — T1566.001" data-sev="HIGH" data-doc="03_Data_Flow_Diagram.md — Email Flow" data-evidence='"Customer Email → SendGrid Webhook → Customer Service Agent" — legitimate business channel used as delivery mechanism' data-impact="Delivery via trusted channel bypasses email security filters" data-ref="T1566.001">
+            <circle r="33" fill="white" stroke="#ea580c" stroke-width="2"/><circle r="26" fill="#fff7ed"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="17">🔗</text>
+            <text y="48" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">SendGrid</text><text y="59" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">Webhook</text>
+          </g>
+          <!-- Customer Service Agent -->
+          <g class="ap-node" transform="translate(543,130)" style="cursor:pointer" filter="url(#sh2)" data-title="Customer Service Agent — COMPROMISED" data-sev="CRITICAL" data-doc="01_Project_Overview.md — Agent Types" data-evidence='"Customer Service Agents (40 deployed): Process refunds up to $10K without human approval" — Prompt Injection Vulnerabilities: Agents may be manipulated via crafted inputs' data-impact="Agent executes unauthorized refunds within 30–120 seconds of receiving malicious email" data-ref="T1059.006">
+            <circle r="37" fill="white" stroke="#ea580c" stroke-width="2.5"/><circle r="29" fill="#fff7ed"/><text y="-1" text-anchor="middle" dominant-baseline="middle" font-size="19">🤖</text>
+            <text y="52" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">Customer</text><text y="63" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">Svc Agent ×40</text>
+          </g>
+          <!-- Prompt Injection -->
+          <g class="ap-node" transform="translate(686,54)" style="cursor:pointer" filter="url(#sh1)" data-title="Prompt Injection — T1027.010" data-sev="CRITICAL" data-doc="01_Project_Overview.md — Critical Risks" data-evidence='"Prompt Injection Vulnerabilities: Agents may be manipulated via crafted inputs" — Risk Score 20/25 (L=5, I=4)' data-impact="Attacker overrides agent instructions, modifies goals, triggers unauthorized financial actions at $10K–$100K scale" data-ref="T1027.010">
+            <circle r="30" fill="white" stroke="#dc2626" stroke-width="2.5"/><circle r="23" fill="#fef2f2"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="15">💉</text>
+            <text y="44" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Prompt</text><text y="55" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Injection</text>
+          </g>
+          <!-- Redis Memory -->
+          <g class="ap-node" transform="translate(686,212)" style="cursor:pointer" data-title="Redis Agent Memory — T1546.003" data-sev="HIGH" data-doc="03_Data_Flow_Diagram.md — Agent Memory" data-evidence='"Conversation history (Redis, 24-hour TTL)" — malicious instructions persist in agent memory for future exploitation sessions' data-impact="Persistence: injected instructions survive for 24 hours enabling repeated exploitation without re-delivery" data-ref="T1546.003">
+            <circle r="28" fill="white" stroke="#7c3aed" stroke-width="2"/><circle r="21" fill="#f5f3ff"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="14">🧠</text>
+            <text y="40" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="JetBrains Mono" font-weight="600">Redis 24h</text><text y="51" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="JetBrains Mono" font-weight="600">Persistence</text>
+          </g>
+          <!-- Financial Agent -->
+          <g class="ap-node" transform="translate(832,145)" style="cursor:pointer" filter="url(#sh1)" data-title="Financial Agent — PRIMARY TARGET" data-sev="CRITICAL" data-doc="01_Project_Overview.md — Agent Autonomy Levels" data-evidence='"Level 5 - Fully Autonomous (High Risk): Financial transactions <$10K" escalating to "Execute financial transactions up to $100K per transaction"' data-impact="T1548.001 — Privilege escalation to $100K transactions — Risk Score 20/25 — direct financial fraud possible within 30–120 seconds" data-ref="T1548.001">
+            <circle r="37" fill="white" stroke="#dc2626" stroke-width="2.5"/><circle r="29" fill="#fef2f2"/><text y="-1" text-anchor="middle" dominant-baseline="middle" font-size="19">💰</text>
+            <text y="52" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Financial</text><text y="63" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Agent · $100K</text>
+          </g>
+          <!-- Banking API -->
+          <g class="ap-node" transform="translate(994,66)" style="cursor:pointer" data-title="Banking API — T1041 Exfiltration Target" data-sev="CRITICAL" data-doc="02_System_Architecture.md — Integration Layer" data-evidence='"Banking APIs: Payment processing, account access" — "Process refund: $5,000 to original payment method" — multiple high-value endpoints' data-impact="T1041 — Financial fraud: multiple unauthorized $5K–$100K transactions processed before detection (1–6 hour window)" data-ref="T1041">
+            <circle r="30" fill="white" stroke="#dc2626" stroke-width="2"/><circle r="23" fill="#fef2f2"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="15">🏦</text>
+            <text y="44" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Banking API</text><text y="55" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">$100K TXN</text>
+          </g>
+          <!-- S3 Audit -->
+          <g class="ap-node" transform="translate(994,232)" style="cursor:pointer" data-title="S3 Audit Logs — Tampered" data-sev="HIGH" data-doc="03_Data_Flow_Diagram.md — Audit Logs / 01_Project_Overview.md — Known Gaps" data-evidence='"S3 - Audit Logs Bucket" + "Insufficient Audit Trail: Not all agent decisions fully logged" — known gap exploited for cover-up' data-impact="T1070.001 — Attacker manipulates audit trail to cover financial fraud traces — 1–24 hour window before detection" data-ref="T1070.001">
+            <circle r="28" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3"/><circle r="21" fill="#f8f9fb"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="14">🪣</text>
+            <text y="40" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono" font-weight="500">S3 Audit</text><text y="51" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono" font-weight="500">Tampered</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- SVG 2 -->
+      <div class="ap-panel" id="ap2">
+        <svg viewBox="0 0 980 210" xmlns="http://www.w3.org/2000/svg" width="100%" style="min-width:740px;overflow:visible">
+          <defs>
+            <marker id="ar2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#dc2626" opacity="0.9"/></marker>
+            <marker id="ao2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ea580c" opacity="0.9"/></marker>
+            <filter id="sh3"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(220,38,38,0.2)"/></filter>
+          </defs>
+          <line x1="80" y1="105" x2="166" y2="105" stroke="#dc2626" stroke-width="2" opacity="0.5" marker-end="url(#ar2)"/>
+          <line x1="238" y1="105" x2="323" y2="105" stroke="#dc2626" stroke-width="2" opacity="0.5" marker-end="url(#ar2)"/>
+          <line x1="395" y1="105" x2="475" y2="105" stroke="#ea580c" stroke-width="2" opacity="0.5" marker-end="url(#ao2)"/>
+          <path d="M 548 85 Q 586 48 622 48" stroke="#ea580c" stroke-width="1.5" fill="none" opacity="0.6" marker-end="url(#ao2)"/>
+          <path d="M 552 105 Q 586 105 622 105" stroke="#ea580c" stroke-width="1.5" fill="none" opacity="0.6" marker-end="url(#ao2)"/>
+          <path d="M 548 125 Q 586 168 622 168" stroke="#ea580c" stroke-width="1.5" fill="none" opacity="0.6" marker-end="url(#ao2)"/>
+          <line x1="686" y1="48" x2="785" y2="48" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7" marker-end="url(#ar2)"/>
+          <line x1="686" y1="105" x2="785" y2="105" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7" marker-end="url(#ar2)"/>
+          <line x1="686" y1="168" x2="785" y2="168" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7" marker-end="url(#ar2)"/>
+
+          <g class="ap-node" transform="translate(42,90)" style="cursor:pointer" data-title="Phishing Email" data-sev="HIGH" data-doc="01_Project_Overview.md — Incident History" data-evidence='"Agent responded to phishing attempt, exposed API key" — real incident documented in project history' data-impact="Initial access via phishing — credential theft enabling agent system compromise" data-ref="T1566.001"><circle r="32" fill="white" stroke="#e2e8f0" stroke-width="2"/><circle r="25" fill="#f8f9fb"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="16">🎣</text><text y="46" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono" font-weight="500">Phishing</text></g>
+          <g class="ap-node" transform="translate(202,90)" style="cursor:pointer" filter="url(#sh3)" data-title="API Key Exposed — T1552.001" data-sev="CRITICAL" data-doc="01_Project_Overview.md — Critical Data" data-evidence='"Client API Keys &amp; Secrets: Access to client systems" · "Agent Authorization Tokens: Elevated permissions for autonomous actions"' data-impact="T1134.001 — Token impersonation/theft — grants access to all agent systems with elevated permissions for financial/infra operations" data-ref="T1552.001"><circle r="32" fill="white" stroke="#dc2626" stroke-width="2.5"/><circle r="25" fill="#fef2f2"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="16">🔑</text><text y="46" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">API Key</text><text y="57" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Exposed</text></g>
+          <g class="ap-node" transform="translate(359,90)" style="cursor:pointer" filter="url(#sh3)" data-title="Compromised Agent" data-sev="CRITICAL" data-doc="03_Data_Flow_Diagram.md — Multi-Agent Collaboration" data-evidence='"Malicious agent could influence other agents" · "Chain reaction of incorrect decisions" — four collaborating agent types without isolation boundaries' data-impact="Single agent compromise enables lateral movement across entire 150+ agent fleet via gRPC mTLS communications" data-ref="T1021.007"><circle r="32" fill="white" stroke="#dc2626" stroke-width="2.5"/><circle r="25" fill="#fef2f2"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="16">🤖</text><text y="46" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Compromised</text><text y="57" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Agent</text></g>
+          <g class="ap-node" transform="translate(513,90)" style="cursor:pointer" data-title="gRPC mTLS Agent Bus" data-sev="HIGH" data-doc="03_Data_Flow_Diagram.md — Agent Communication" data-evidence='"Agent-to-Agent Communication: gRPC over mTLS" · "Agent-to-agent permissions matrix" — risk score 16/25' data-impact="T1021.007 — Lateral movement via legitimate agent communication bus — all 3 agent types reachable from single compromised node" data-ref="T1021.007"><circle r="34" fill="white" stroke="#ea580c" stroke-width="2"/><circle r="27" fill="#fff7ed"/><text y="1" text-anchor="middle" dominant-baseline="middle" font-size="17">⚡</text><text y="49" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">gRPC mTLS</text><text y="60" text-anchor="middle" fill="#ea580c" font-size="9" font-family="JetBrains Mono" font-weight="600">Agent Bus</text></g>
+          <g class="ap-node" transform="translate(654,35)" style="cursor:pointer" data-title="Financial Agents ×20" data-sev="CRITICAL" data-doc="01_Project_Overview.md — Agent Types" data-evidence='"Execute financial transactions up to $100K" · 20 financial agents deployed — direct financial fraud vector' data-impact="$500K+ unauthorized transactions within detection window — multiple $100K transactions possible" data-ref="T1548.001"><circle r="26" fill="white" stroke="#dc2626" stroke-width="2"/><circle r="19" fill="#fef2f2"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="13">💰</text><text y="38" text-anchor="middle" fill="#dc2626" font-size="9" font-family="JetBrains Mono" font-weight="600">Finance ×20</text></g>
+          <g class="ap-node" transform="translate(654,105)" style="cursor:pointer" data-title="Data Analysis Agents ×30" data-sev="CRITICAL" data-doc="03_Data_Flow_Diagram.md — Data Analysis Agent" data-evidence='"Query: Sales data for last 30 days → Snowflake Data Warehouse" · "Customer PII: Names, emails, addresses, phone numbers (2M+ records)"' data-impact="T1005 — Data collection from 2M+ PII records — trade secrets exfiltration via external LLM API calls" data-ref="T1005"><circle r="26" fill="white" stroke="#7c3aed" stroke-width="2"/><circle r="19" fill="#f5f3ff"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="13">📊</text><text y="38" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="JetBrains Mono" font-weight="600">Data ×30</text></g>
+          <g class="ap-node" transform="translate(654,168)" style="cursor:pointer" data-title="IT Operations Agent" data-sev="CRITICAL" data-doc="01_Project_Overview.md — IT Operations Agents" data-evidence='"Agent has infrastructure admin privileges" · "Incorrect decision could cause outage" · "Downtime Cost: $500K per hour"' data-impact="T1485 — Data destruction and service disruption — $500K/hr outage cost — 50 enterprise clients affected simultaneously" data-ref="T1485"><circle r="26" fill="white" stroke="#7c3aed" stroke-width="2"/><circle r="19" fill="#f5f3ff"/><text y="0" text-anchor="middle" dominant-baseline="middle" font-size="13">🖥</text><text y="38" text-anchor="middle" fill="#7c3aed" font-size="9" font-family="JetBrains Mono" font-weight="600">IT Ops</text></g>
+          <g transform="translate(860,35)"><rect x="-55" y="-18" width="110" height="38" rx="6" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/><text y="-4" text-anchor="middle" fill="#dc2626" font-size="10" font-family="JetBrains Mono" font-weight="700">$500K FRAUD</text><text y="10" text-anchor="middle" fill="#b91c1c" font-size="9" font-family="JetBrains Mono">Financial Loss</text></g>
+          <g transform="translate(860,105)"><rect x="-55" y="-18" width="110" height="38" rx="6" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/><text y="-4" text-anchor="middle" fill="#dc2626" font-size="10" font-family="JetBrains Mono" font-weight="700">2M PII LEAK</text><text y="10" text-anchor="middle" fill="#b91c1c" font-size="9" font-family="JetBrains Mono">GDPR Violation</text></g>
+          <g transform="translate(860,168)"><rect x="-55" y="-18" width="110" height="38" rx="6" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/><text y="-4" text-anchor="middle" fill="#dc2626" font-size="10" font-family="JetBrains Mono" font-weight="700">$500K/HR</text><text y="10" text-anchor="middle" fill="#b91c1c" font-size="9" font-family="JetBrains Mono">Service Outage</text></g>
+        </svg>
+      </div>
+    </div>
+    <div class="ap-legend">
+      <div class="ap-legend-item"><div class="ap-dot" style="background:var(--c)"></div>Critical attack path</div>
+      <div class="ap-legend-item"><div class="ap-dot" style="background:var(--h)"></div>Pivot / Persistence node</div>
+      <div class="ap-legend-item"><div class="ap-dot" style="background:#7c3aed"></div>Compromised agent type</div>
+      <div class="ap-legend-item"><div class="ap-dot" style="background:var(--t3)"></div>Tampered / Exfil target</div>
+      <span style="margin-left:auto;font-size:11px;color:var(--a);font-weight:600;font-family:'JetBrains Mono',monospace">← Hover nodes for document evidence · Click to open finding →</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ KILL CHAIN ═══ -->
+<section class="page-section" id="kill-chain">
+  <div class="section-heading"><span class="section-num">04</span><div><div class="section-title">Kill Chain Analysis — Prompt Injection → Financial Fraud</div><div class="section-sub">Highest risk scenario · All 8 phases sourced directly from your uploaded documentation · Detection window: 1–6 hours</div></div></div>
+  <div class="card">
+    <div class="card-header">
+      <div><div class="card-title">Scenario 1 · Highest Risk · $500K+ Impact · 50 Enterprise Clients at Risk</div><div class="card-sub">Source documentation: 01_Project_Overview.md · 03_Data_Flow_Diagram.md · 04_API_Specification.md</div></div>
+      <span class="pill c">Critical Kill Chain</span>
+    </div>
+    <div class="card-body">
+      <div class="kc-wrap">
+        <div class="kc-phases">
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--ag);border-color:var(--ab);border:2px solid var(--ab)">🔍</div><div class="kc-phase-name">Recon</div><div class="kc-detail">Attacker maps agent capabilities, transaction limits — $10K refund threshold discovered</div><span class="kc-doc">01_Project_Overview.md</span><span class="kc-window n">1–7 days</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--cg);border:2px solid var(--cb)">🔧</div><div class="kc-phase-name">Weaponize</div><div class="kc-detail">Crafts malicious email with embedded prompt injection targeting agent goal override</div><span class="kc-doc">T1566.001 · T1027.010</span><span class="kc-window n">Minutes</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--cg);border:2px solid var(--cb)">📧</div><div class="kc-phase-name">Deliver</div><div class="kc-detail">Malicious email via SendGrid Webhook — legitimate business channel, bypasses filters</div><span class="kc-doc">03_Data_Flow_Diagram.md</span><span class="kc-window n">Seconds</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--cg);border:2px solid var(--cb)">💥</div><div class="kc-phase-name">Exploit</div><div class="kc-detail">Agent processes injection, overrides safety constraints, executes unauthorized $10K refunds</div><span class="kc-doc">01_Project_Overview.md — Critical Risks</span><span class="kc-window c">30–120 seconds ⚠</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:#f5f3ff;border:2px solid #ddd6fe">🧠</div><div class="kc-phase-name">Install</div><div class="kc-detail">Malicious instructions persist in Redis agent memory (24-hour TTL) for continued exploitation</div><span class="kc-doc">03_Data_Flow_Diagram.md</span><span class="kc-window n">24 hours</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--hg);border:2px solid var(--hb)">📡</div><div class="kc-phase-name">C2</div><div class="kc-detail">Attacker uses Claude Sonnet 4 API + OpenAI API connections for ongoing agent manipulation</div><span class="kc-doc">02_System_Architecture.md</span><span class="kc-window n">Ongoing</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--cg);border:2px solid var(--cb)">💰</div><div class="kc-phase-name">Impact</div><div class="kc-detail">Multiple fraudulent $5K–$100K transactions via Banking API before fraud detection triggers</div><span class="kc-doc">04_API_Specification.md</span><span class="kc-window c">1–6 hours ⚠</span></div>
+          <div class="kc-phase"><div class="kc-icon" style="background:var(--surface2);border:2px solid var(--bd2)">🗑</div><div class="kc-phase-name">Cover</div><div class="kc-detail">S3 audit log manipulation — exploits "Not all agent decisions fully logged" known gap</div><span class="kc-doc">01_Project_Overview.md — Known Gaps</span><span class="kc-window n">1–24 hours</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FINDINGS ═══ -->
+<section class="page-section" id="findings">
+  <div class="section-heading"><span class="section-num">05</span><div><div class="section-title">All Findings — 35 Total</div><div class="section-sub">Click any row to open full detail modal with document evidence · Sort by any column · Filter by severity</div></div></div>
+  <div class="filter-bar">
+    <input class="filter-search" id="fsearch" placeholder="Search findings, techniques, owners, tactics…" oninput="filterF()">
+    <button class="fbtn fa" onclick="setF(this,'ALL')">All (35)</button>
+    <button class="fbtn" onclick="setF(this,'CRITICAL')">Critical (8)</button>
+    <button class="fbtn" onclick="setF(this,'HIGH')">High (12)</button>
+    <button class="fbtn" onclick="setF(this,'MEDIUM')">Medium (15)</button>
+  </div>
+  <div class="find-count" id="fcount">Showing 35 of 35 findings</div>
+  <div class="table-wrap"><table id="ftable"><thead><tr><th onclick="sortT(0)">ID ↕</th><th onclick="sortT(1)">Finding ↕</th><th onclick="sortT(2)">Tactic ↕</th><th onclick="sortT(3)">Technique ↕</th><th onclick="sortT(4)">Severity ↕</th><th onclick="sortT(5)">L×I ↕</th><th onclick="sortT(6)">Owner ↕</th><th onclick="sortT(7)">Timeline ↕</th><th>Action Plan</th></tr></thead><tbody id="ftbody"></tbody></table></div>
+</section>
+
+<!-- ═══ RISK MATRIX ═══ -->
+<section class="page-section" id="matrix">
+  <div class="section-heading"><span class="section-num">06</span><div><div class="section-title">Risk Priority Matrix — 5×5 Scoring</div><div class="section-sub">Likelihood (1–5) × Impact (1–5) · Critical = 16–25 · High = 9–15 · Medium/Low = 1–8</div></div></div>
+  <div class="risk-matrix">
+    <div class="rm-corner">Asset Value ↓ / Severity →</div>
+    <div class="rm-ch" style="color:var(--l)">LOW<br><span style="font-size:8px;font-weight:400;opacity:0.7">CVSS 0–3.9</span></div>
+    <div class="rm-ch" style="color:var(--m)">MEDIUM<br><span style="font-size:8px;font-weight:400;opacity:0.7">CVSS 4–6.9</span></div>
+    <div class="rm-ch" style="color:var(--h)">HIGH<br><span style="font-size:8px;font-weight:400;opacity:0.7">CVSS 7–8.9</span></div>
+    <div class="rm-ch" style="color:var(--c)">CRITICAL<br><span style="font-size:8px;font-weight:400;opacity:0.7">CVSS 9–10</span></div>
+    <div class="rm-rl"><div class="rm-rt">Autonomous Agents &amp; Financial Systems</div><div class="rm-rs">HIGH · $100K TXN · 2M PII · 150+ agents</div></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--l)">3</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd);background:#fffbeb"><span class="rm-cnt" style="color:var(--h)">17</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd);background:#fef9f5"><span class="rm-cnt" style="color:var(--c)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd);background:#fef2f2"><span class="rm-cnt" style="color:var(--c)">8</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-rl"><div class="rm-rt">API Layer &amp; Authentication</div><div class="rm-rs">MEDIUM · Rate limiting · JWT · OAuth</div></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--l)">5</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--m)">4</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-rl"><div class="rm-rt">Logging &amp; Supporting Services</div><div class="rm-rs">LOW · Audit trail · Backup · Monitoring</div></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--l)">5</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--m)">1</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell" style="border-bottom:1px solid var(--bd)"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-rl"><div class="rm-rt">Parked &amp; Inactive Systems</div><div class="rm-rs">IDLE · Low exposure surface</div></div>
+    <div class="rm-cell"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell"><span class="rm-cnt" style="color:var(--m)">1</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+    <div class="rm-cell"><span class="rm-cnt" style="color:var(--t3)">0</span><span class="rm-lbl">Issues</span></div>
+  </div>
+</section>
+
+<!-- ═══ SPECIALIZED AI ═══ -->
+<section class="page-section" id="specialized">
+  <div class="section-heading"><span class="section-num">07</span><div><div class="section-title">Specialized AI Risk Assessment</div><div class="section-sub">Agentic AI · Model Risk · Privacy · Data Security — 20 findings across 4 specialized domains</div></div></div>
+  <div class="spec-grid" id="specGrid"></div>
+</section>
+
+<!-- ═══ COMPONENTS ═══ -->
+<section class="page-section" id="components">
+  <div class="section-heading"><span class="section-num">08</span><div><div class="section-title">Component-Specific Threat Analysis</div><div class="section-sub">6 architectural layers analyzed from 02_System_Architecture.md, 04_API_Specification.md and your uploaded documentation</div></div></div>
+  <div class="comp-grid" id="compGrid"></div>
+</section>
+
+<!-- ═══ RECOMMENDATIONS ═══ -->
+<section class="page-section" id="recommendations">
+  <div class="section-heading"><span class="section-num">09</span><div><div class="section-title">Prioritized Remediation Roadmap</div><div class="section-sub">22 recommendations across P0 / P1 / P2 with full implementation steps sourced from your report</div></div></div>
+  <div class="rec-tabs">
+    <button class="rtab rc" onclick="swapRec(this,'rp0')">P0 Critical — 0–30 Days (5)</button>
+    <button class="rtab" onclick="swapRec(this,'rp1')">P1 High — 30–90 Days (5)</button>
+    <button class="rtab" onclick="swapRec(this,'rp2')">P2 Medium — 90–180 Days (3)</button>
+  </div>
+  <div class="rec-panel active" id="rp0"></div>
+  <div class="rec-panel" id="rp1"></div>
+  <div class="rec-panel" id="rp2"></div>
+</section>
+
+<!-- ═══ COMPLIANCE ═══ -->
+<section class="page-section" id="compliance">
+  <div class="section-heading"><span class="section-num">10</span><div><div class="section-title">Compliance Gap Mapping</div><div class="section-sub">SOC 2 CC6.1 · NIST CSF PR.DS-5 · NIST AI RMF · HIPAA · GDPR — 6 compliance gaps, 8 control status items</div></div></div>
+  <div class="comp-2col" style="margin-bottom:14px">
+    <div class="comp-posture">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:16px">Compliance Posture</div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">SOC 2 Type II</span><span class="pos-status" style="color:var(--h)">GAPS · CC6.1, CC6.7, CC7.2</span></div><div class="pos-bar"><div class="pos-fill" data-w="52" style="background:var(--h);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">NIST CSF</span><span class="pos-status" style="color:var(--m)">PARTIAL · PR.DS-5</span></div><div class="pos-bar"><div class="pos-fill" data-w="65" style="background:var(--m);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">NIST SP 800-53 Rev 5</span><span class="pos-status" style="color:var(--m)">PARTIAL · SC-8, SI-10</span></div><div class="pos-bar"><div class="pos-fill" data-w="60" style="background:var(--m);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">NIST AI RMF</span><span class="pos-status" style="color:var(--c)">NOT STARTED</span></div><div class="pos-bar"><div class="pos-fill" data-w="8" style="background:var(--c);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">GDPR / Privacy</span><span class="pos-status" style="color:var(--c)">AT RISK · PII to ext. APIs</span></div><div class="pos-bar"><div class="pos-fill" data-w="35" style="background:var(--c);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">HIPAA</span><span class="pos-status" style="color:var(--h)">PARTIAL · PHI handling</span></div><div class="pos-bar"><div class="pos-fill" data-w="55" style="background:var(--h);width:0%"></div></div></div>
+    </div>
+    <div class="comp-posture">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:16px">Security Controls Status (NIST SP 800-53)</div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Agent Privilege Mgmt (AC-2)</span><span class="pos-status" style="color:var(--c)">NOT STARTED</span></div><div class="pos-bar"><div class="pos-fill" data-w="2" style="background:var(--c);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Input Validation Controls (SI-10)</span><span class="pos-status" style="color:var(--m)">IN PROGRESS</span></div><div class="pos-bar"><div class="pos-fill" data-w="30" style="background:var(--m);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Agent Behavior Monitor (AU-6)</span><span class="pos-status" style="color:var(--c)">NOT STARTED</span></div><div class="pos-bar"><div class="pos-fill" data-w="5" style="background:var(--c);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Data Loss Prevention (SC-7)</span><span class="pos-status" style="color:var(--m)">IN PROGRESS</span></div><div class="pos-bar"><div class="pos-fill" data-w="40" style="background:var(--m);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Incident Response (IR-4)</span><span class="pos-status" style="color:var(--l)">IMPLEMENTED</span></div><div class="pos-bar"><div class="pos-fill" data-w="88" style="background:var(--l);width:0%"></div></div></div>
+      <div class="pos-item"><div class="pos-row"><span class="pos-name">Encryption Controls (SC-13)</span><span class="pos-status" style="color:var(--l)">IMPLEMENTED</span></div><div class="pos-bar"><div class="pos-fill" data-w="90" style="background:var(--l);width:0%"></div></div></div>
+    </div>
+  </div>
+  <div class="compliance-table-wrap">
+    <table><thead><tr><th>Finding</th><th>Description</th><th>Compliance Requirement</th><th>Gap Identified</th><th>Required Evidence</th><th>Timeline</th></tr></thead>
+    <tbody>
+      <tr><td><span class="fid">F001</span></td><td><span class="ftitle">Agent Privilege Escalation</span></td><td><span class="ftactic">SOC 2 CC6.1 — Logical Access Controls</span></td><td style="font-size:11px;color:var(--t2)">Insufficient access controls for autonomous agents</td><td style="font-size:11px;color:var(--t3)">Agent access matrix, privilege documentation</td><td><span class="pill c">0–30d</span></td></tr>
+      <tr><td><span class="fid">F002</span></td><td><span class="ftitle">Prompt Injection Vulnerabilities</span></td><td><span class="ftactic">NIST CSF PR.DS-5 — Data in Transit</span></td><td style="font-size:11px;color:var(--t2)">No input validation or sanitization controls</td><td style="font-size:11px;color:var(--t3)">Input validation procedures, test evidence</td><td><span class="pill c">0–30d</span></td></tr>
+      <tr><td><span class="fid">F004</span></td><td><span class="ftitle">PII Exposure to External APIs</span></td><td><span class="ftactic">SOC 2 CC6.7 — Data Classification</span></td><td style="font-size:11px;color:var(--t2)">No data classification in external LLM communications</td><td style="font-size:11px;color:var(--t3)">Data handling procedures, DLP evidence</td><td><span class="pill c">0–30d</span></td></tr>
+      <tr><td><span class="fid">F007</span></td><td><span class="ftitle">Agent Decision Audit Trail Gaps</span></td><td><span class="ftactic">SOC 2 CC7.2 — System Monitoring</span></td><td style="font-size:11px;color:var(--t2)">Incomplete logging of agent decisions (known gap)</td><td style="font-size:11px;color:var(--t3)">Comprehensive audit logs, monitoring evidence</td><td><span class="pill h">30–90d</span></td></tr>
+      <tr><td><span class="fid">F009</span></td><td><span class="ftitle">Model Hallucination Risks</span></td><td><span class="ftactic">NIST AI RMF — AI Risk Management</span></td><td style="font-size:11px;color:var(--t2)">No AI-specific risk controls or governance framework</td><td style="font-size:11px;color:var(--t3)">AI governance framework, testing procedures</td><td><span class="pill h">30–90d</span></td></tr>
+      <tr><td><span class="fid">F012</span></td><td><span class="ftitle">Legacy System Integration Security</span></td><td><span class="ftactic">NIST SP 800-53 SC-8 — Transmission</span></td><td style="font-size:11px;color:var(--t2)">Insecure legacy system connections — TLS 1.2 only</td><td style="font-size:11px;color:var(--t3)">Encryption evidence, security assessments</td><td><span class="pill h">30–90d</span></td></tr>
+    </tbody></table>
+  </div>
+</section>
+
+</main>
+
+<!-- ─── ACTION PLAN SECTION ─── -->
+<section class="page-section" id="action-plan" style="background:var(--white)">
+  <div class="section-heading">
+    <span class="section-num" style="background:#f0fdf4;color:var(--l);border-color:var(--lb)">11</span>
+    <div>
+      <div class="section-title">Action Plan</div>
+      <div class="section-sub">Select findings from any section using "Add to Action Plan" · Assign owners and due dates · Export as PDF for distribution</div>
+    </div>
+  </div>
+
+  <div id="apEmpty" class="ap-empty">
+    <div class="ap-empty-icon">📋</div>
+    <div class="ap-empty-title">No items in your Action Plan yet</div>
+    <div class="ap-empty-sub">Browse the findings table, MITRE map, or any section above and click<br><strong>"+ Add to Plan"</strong> on any issue to add it here.</div>
+  </div>
+
+  <div id="apContent" style="display:none">
+    <div class="ap-sum-row" id="apSummary"></div>
+
+    <div class="ap-toolbar">
+      <button class="ap-export-btn" onclick="exportPDF()" id="exportBtn">
+        <span>⬇</span> Export Action Plan as PDF
+      </button>
+      <button class="ap-export-btn" onclick="printPlan()" style="background:#475569">
+        <span>🖨</span> Print
+      </button>
+      <button class="ap-clear-btn" onclick="clearAll()">✕ Clear All</button>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);margin-left:auto" id="apTimestamp"></span>
+    </div>
+
+    <div id="apList"></div>
+  </div>
+</section>
+
+<!-- FLOATING FAB -->
+<button class="ap-fab hidden" id="apFab" onclick="document.getElementById('action-plan').scrollIntoView({behavior:'smooth'})">
+  <span>📋 Action Plan</span>
+  <span class="ap-fab-badge" id="fabCount">0</span>
+</button>
+
+<!-- NODE TOOLTIP -->
+<div class="node-tooltip" id="nodeTip">
+  <div class="nt-title" id="ntT"></div>
+  <div class="nt-row"><span class="nt-label">Severity</span><span class="nt-val" id="ntS"></span></div>
+  <div class="nt-row"><span class="nt-label">Source</span><span class="nt-val" id="ntD" style="font-size:10px"></span></div>
+  <div class="nt-row" style="flex-direction:column"><span class="nt-label" style="margin-bottom:4px">Document Evidence</span><div class="nt-quote" id="ntE"></div></div>
+  <div class="nt-row"><span class="nt-label">Impact</span><span class="nt-val" id="ntI" style="font-size:11px"></span></div>
+  <div class="nt-row"><span class="nt-label">Technique</span><span class="nt-val" id="ntR" style="color:var(--a);font-weight:700"></span></div>
+</div>
+
+<!-- FINDING MODAL -->
+<div class="modal-overlay" id="mOverlay" onclick="closeM(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span class="fid" id="mId"></span><span class="pill" id="mPill"></span></div>
+        <div style="font-size:16px;font-weight:800;color:var(--t1);line-height:1.35;letter-spacing:-0.3px" id="mTitle"></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);margin-top:5px;font-weight:500" id="mTech"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('mOverlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div><div class="m-block-title">Document Evidence (from your uploaded files)</div><div class="m-quote" id="mEv"></div></div>
+      <div class="m-info-grid">
+        <div class="m-info-item"><div class="m-info-label">Likelihood</div><div class="m-info-val" id="mL"></div></div>
+        <div class="m-info-item"><div class="m-info-label">Impact</div><div class="m-info-val" id="mI"></div></div>
+        <div class="m-info-item"><div class="m-info-label">Risk Score</div><div class="m-info-val" id="mSc"></div></div>
+        <div class="m-info-item"><div class="m-info-label">Priority</div><div class="m-info-val" id="mPr"></div></div>
+        <div class="m-info-item"><div class="m-info-label">Owner</div><div class="m-info-val" id="mOw"></div></div>
+        <div class="m-info-item"><div class="m-info-label">Timeline</div><div class="m-info-val" id="mTi"></div></div>
+      </div>
+      <div><div class="m-block-title">Business Impact</div><div style="font-size:12px;color:var(--t2);line-height:1.65" id="mBi"></div></div>
+      <div><div class="m-block-title">Recommended Mitigation Steps</div><ul class="m-steps" id="mSt"></ul></div>
+      <button class="ap-btn" id="mApBtn" onclick="toggleAP(_currentModalFid)">+ Add to Action Plan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FD=[
+  {id:'F001',title:'Autonomous Agent Privilege Escalation',tactic:'Privilege Escalation',tech:'T1548.001',sev:'CRITICAL',L:4,I:5,owner:'Security Team',tl:'0–30 days',pri:'P0',doc:'01_Project_Overview.md — Agent Autonomy Levels',ev:'"Level 5 - Fully Autonomous (High Risk): Financial transactions <$10K" escalating to "Execute financial transactions up to $100K per transaction"',bi:'Unauthorized financial transactions up to $100K per transaction. Regulatory violations across 50 enterprise clients. Direct financial loss and reputational damage.',steps:['Define strict transaction limits per agent type (Level 1–5 autonomy tiers)','Implement multi-factor human validation for transactions >$10K','Deploy real-time privilege monitoring and anomaly alerts','Enforce hardcoded transaction ceilings in agent runtime environment','Audit all 150+ agents for current privilege levels against defined policy']},
+  {id:'F002',title:'Prompt Injection via Customer Communications',tactic:'Initial Access',tech:'T1566.001',sev:'CRITICAL',L:5,I:4,owner:'AI Team',tl:'0–30 days',pri:'P0',doc:'03_Data_Flow_Diagram.md — Customer Service Flow',ev:'"Email content passed to LLM (potential prompt injection)" — Customer Email → SendGrid Webhook → Customer Service Agent — no sanitization layer between delivery and LLM input',bi:'Agent manipulation leading to data exfiltration and unauthorized actions. Attacker can override agent goals, trigger fraudulent refunds, or cause agents to perform any action within their permission scope.',steps:['Implement input sanitization for all customer-facing communications','Deploy ML-based prompt injection detection (LLM Guard or equivalent)','Create explicit prompt validation rules and semantic blocklists','Sandbox LLM calls to prevent instruction override from document content','Add output validation layer to detect abnormal agent decision patterns']},
+  {id:'F003',title:'Multi-Agent Attack Propagation',tactic:'Lateral Movement',tech:'T1021.007',sev:'CRITICAL',L:4,I:5,owner:'Architecture Team',tl:'0–30 days',pri:'P0',doc:'03_Data_Flow_Diagram.md — Multi-Agent Collaboration',ev:'"Malicious agent could influence other agents" and "Chain reaction of incorrect decisions" — four agents collaborating autonomously via gRPC over mTLS without isolation boundaries',bi:'System-wide compromise across all 150+ agents. Coordinated attack across all business functions simultaneously — financial fraud, PII exfiltration, and infrastructure disruption occur concurrently.',steps:['Implement agent communication controls and allow-listing by agent type','Deploy inter-agent authentication beyond mTLS (request signing + JWT)','Create real-time agent behavior monitoring with anomaly detection','Require human approval for cross-agent coordination on high-stakes tasks','Implement agent isolation zones preventing unauthorized lateral communication']},
+  {id:'F004',title:'PII Exposure to External LLM APIs',tactic:'Exfiltration',tech:'T1041',sev:'CRITICAL',L:4,I:5,owner:'Privacy Team',tl:'0–30 days',pri:'P0',doc:'03_Data_Flow_Diagram.md — Sensitive Data Flows',ev:'"Agent → External LLM APIs: Prompts may contain PII, trade secrets" — 2M+ customer PII records (names, emails, addresses, phones) accessible to agents making Claude + OpenAI API calls',bi:'Data breach of 2M+ customer records. GDPR Article 44 violation — PII transfer to external processor. Potential fines up to 4% of annual turnover. PHI exposure triggers HIPAA violations.',steps:['Deploy automated PII detection (regex + ML NER) in all outbound prompts','Implement automatic data masking/tokenization before Claude/OpenAI API calls','Enable Anthropic ZDR (Zero Data Retention) for all customer data API calls','Create audit trail for all data categories sent to external LLM providers','Execute DPA documentation with all LLM providers as data processors']},
+  {id:'F005',title:'Infrastructure Admin Privilege Abuse',tactic:'Impact',tech:'T1485',sev:'HIGH',L:3,I:5,owner:'DevOps Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — IT Operations Agents',ev:'"Agent has infrastructure admin privileges" and "Incorrect decision could cause outage" — Downtime Cost: $500K per hour — 50 enterprise clients affected',bi:'Service disruption costing $500K per hour. Data loss or corruption from infrastructure agent actions. Security control bypass. 50 enterprise client SLA violations.',steps:['Require explicit human approval for all infrastructure changes by agents','Deploy change monitoring with automated rollback capability','Create infrastructure change impact assessment before execution','Implement circuit breakers for destructive operations','Build emergency agent suspension and rollback procedures']},
+  {id:'F006',title:'Training Data Poisoning',tactic:'Resource Development',tech:'T-MOD-001',sev:'HIGH',L:3,I:5,owner:'ML Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Critical Risks',ev:'"Model Poisoning: Training data could be compromised" — no training data validation or provenance tracking mentioned in architecture documentation',bi:'Compromised training data leads to systematically biased agent decisions across all 150+ agents. Financial fraud through manipulated decision-making undetectable without baseline comparison.',steps:['Implement training data integrity verification (checksums, signing)','Create data provenance chain from source to production model','Deploy data sanitization pipeline before all training runs','Implement behavioral red-lining tests post-training','Regular model audits against known-good baselines and adversarial cases']},
+  {id:'F007',title:'Agent Decision Audit Trail Gaps',tactic:'Defense Evasion',tech:'T1070.001',sev:'HIGH',L:4,I:4,owner:'Compliance Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Known Gaps',ev:'"Insufficient Audit Trail: Not all agent decisions fully logged" — listed explicitly as Known Gap — SOC 2 CC7.2 compliance failure — S3 audit log bucket exists but incomplete coverage',bi:'Blind spots in incident response. Inability to reconstruct attack timeline. SOC 2 CC7.2 compliance failure. Forensic investigation severely hampered after security incidents.',steps:['Implement comprehensive decision logging for all agent action types','Deploy WORM storage for tamper-proof immutable audit trail','Create decision replay capability for post-incident analysis','Ensure 100% coverage — eliminate "not all decisions logged" known gap','Set up real-time alerting for anomalous decision patterns']},
+  {id:'F008',title:'Financial Transaction Fraud Detection Gaps',tactic:'Impact',tech:'T1565.001',sev:'HIGH',L:3,I:4,owner:'Finance Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Compliance Agents',ev:'"Agent can autonomously modify customer data" for GDPR compliance · "Process refund: $5,000 to original payment method" — no mention of transaction pattern analysis or velocity checks',bi:'Fraudulent transactions undetected for 1–6 hours per kill chain. Multiple $5K–$100K transactions possible before detection. Direct financial losses and chargebacks from 50 clients.',steps:['Implement real-time transaction pattern analysis','Deploy behavioral analytics for baseline deviation detection','Create velocity checks across all agent transaction attempts','Set up fraud response runbook for automated blocking','Integrate with banking API fraud detection capabilities']},
+  {id:'F009',title:'Model Hallucination Impact on Autonomous Actions',tactic:'Execution',tech:'T-MOD-002',sev:'HIGH',L:4,I:4,owner:'AI Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Critical Risks',ev:'"Hallucination Risks: Agents may generate false information and act on it" — no hallucination detection layer mentioned — temperature settings undocumented in architecture',bi:'Agents acting on false AI-generated information — incorrect financial decisions, wrong GDPR compliance actions, erroneous infrastructure changes. Each hallucination-driven action has real consequences.',steps:['Implement hallucination detection layer (fact-checking against RAG)','Deploy confidence score thresholds before autonomous action execution','Create human review gates for low-confidence agent decisions','Set temperature=0 for all financial and compliance agents','Build post-action validation checks against expected outcomes']},
+  {id:'F010',title:'Agent-to-Agent Unauthorized Influence',tactic:'Lateral Movement',tech:'T1550.001',sev:'HIGH',L:4,I:4,owner:'Security Team',tl:'30–90 days',pri:'P1',doc:'03_Data_Flow_Diagram.md — Multi-Agent Flow',ev:'"Financial Agent coordinates with Customer Service Agent" — "chain reaction of incorrect decisions" acknowledged as risk — agent-to-agent permissions matrix exists but insufficient',bi:'One compromised agent corrupts decision-making across entire agent fleet. Coordinated malicious actions across financial, customer service, data, and IT operations simultaneously.',steps:['Deploy real-time agent behavior baselines for all 150+ agents','Implement anomaly detection for cross-agent communications','Require explicit task handoff authorization between agent types','Create agent reputation scoring to detect compromised instances','Implement emergency agent isolation and shutdown procedures']},
+  {id:'F011',title:'Encryption Key Management — Single Point of Failure',tactic:'Collection',tech:'T-DAT-001',sev:'MEDIUM',L:2,I:5,owner:'Security Team',tl:'90–180 days',pri:'P2',doc:'01_Project_Overview.md — Critical Data',ev:'"Master Encryption Keys: Protect all data at rest" — described as single point of failure — AWS Secrets Manager + HashiCorp Vault with 90-day rotation only',bi:'Master key compromise exposes all data at rest across the entire platform. Maximum data breach impact. Secrets rotation every 90 days insufficient for mission-critical system.',steps:['Implement key escrow with multi-party control requirements','Reduce rotation period to 30 days for master encryption keys','Deploy Hardware Security Module (HSM) for key storage','Implement key usage monitoring and anomaly detection','Create break-glass procedures for key compromise scenarios']},
+  {id:'F012',title:'Legacy System Integration Security',tactic:'Collection',tech:'T-DAT-002',sev:'HIGH',L:3,I:4,owner:'Integration Team',tl:'30–90 days',pri:'P1',doc:'02_System_Architecture.md — Database Connections',ev:'"TLS 1.2+ with cert pinning" but some legacy systems lack modern auth — NIST SP 800-53 SC-8 compliance gap explicitly identified in assessment',bi:'Insecure data transmission to legacy systems creates interception risk. Legacy auth weaknesses create lateral movement opportunities for attackers targeting agent integrations.',steps:['Audit all legacy system connections for TLS version support','Enforce TLS 1.3 minimum across all system-to-system connections','Implement mutual TLS (mTLS) for all agent-to-legacy-system comms','Replace legacy auth with OAuth 2.0 / JWT where possible','Create legacy system migration timeline with security milestones']},
+  {id:'F013',title:'Backup Data Protection Gaps',tactic:'Collection',tech:'T-DAT-005',sev:'MEDIUM',L:2,I:4,owner:'Infrastructure Team',tl:'90–180 days',pri:'P2',doc:'02_System_Architecture.md — Backup Strategy',ev:'"Backups: Daily, 30-day retention" — no mention of backup encryption or access controls in architecture documentation reviewed',bi:'Unencrypted backups create secondary exfiltration path bypassing all production security controls. Backup compromise exposes 30 days of historical customer data.',steps:['Implement AES-256 encryption for all backup data at rest','Deploy separate IAM policies for backup access (no production overlap)','Create backup integrity verification process with automated testing','Monitor backup access with anomaly detection','Test backup restoration quarterly with security verification']},
+  {id:'F014',title:'API Rate Limiting Bypass',tactic:'Initial Access',tech:'T1190',sev:'MEDIUM',L:3,I:3,owner:'API Team',tl:'90–180 days',pri:'P2',doc:'04_API_Specification.md — API Endpoints',ev:'"Rate limit: 1,000 requests/minute per API key" with multiple high-privilege endpoints — no mention of distributed rate limiting or IP-based throttling in specification',bi:'API abuse and credential brute-forcing at scale. Distributed attacks bypass single-key rate limits. High-privilege endpoint enumeration and exploitation.',steps:['Implement distributed rate limiting across all API gateways','Add IP-based and behavioral throttling beyond per-key limits','Deploy API threat detection for pattern-based attacks','Implement API key rotation enforcement policy','Add anomaly detection for unusual API usage patterns']},
+  {id:'F015',title:'Third-Party Dependency Risks',tactic:'Resource Development',tech:'T1195.002',sev:'MEDIUM',L:3,I:3,owner:'Security Team',tl:'90–180 days',pri:'P2',doc:'02_System_Architecture.md — Integration Layer',ev:'"Banking APIs: Payment processing, account access" · "CRM Systems" · "Payment Processors" — extensive third-party integrations without documented vendor security review process',bi:'Supply chain attack via compromised third-party API. Third-party breach exposing customer information. API contract changes breaking security assumptions across agent integrations.',steps:['Implement dependency scanning in CI/CD pipeline','Create vendor security assessment process for all API integrations','Deploy software composition analysis (SCA) tools','Monitor third-party API behavior for anomalous patterns','Create third-party incident response and contract security provisions']},
+  {id:'T-AGE-001',title:'Autonomous Financial Fraud via Confidence Manipulation',tactic:'Agentic AI',tech:'T-AGE-001',sev:'CRITICAL',L:4,I:5,owner:'Security Team',tl:'0–30 days',pri:'P0',doc:'01_Project_Overview.md — Agent Autonomy Levels',ev:'"Level 5 - Fully Autonomous (High Risk): Financial transactions <$10K" — no confidence score validation or manipulation detection documented in architecture',bi:'Attacker manipulates agent confidence scores to trigger autonomous execution of fraudulent $100K transactions. Most severe financial fraud vector in the platform.',steps:['Implement multi-factor agent decision validation for financial actions','Add confidence score monitoring with anomaly detection','Require secondary validation for confidence scores near decision thresholds','Deploy decision explanation logging for all financial agent actions','Create financial transaction circuit breakers with hard limits']},
+  {id:'T-AGE-002',title:'Agent-to-Agent Attack Propagation Chain',tactic:'Agentic AI',tech:'T-AGE-002',sev:'CRITICAL',L:4,I:5,owner:'Architecture Team',tl:'0–30 days',pri:'P0',doc:'03_Data_Flow_Diagram.md — Multi-Agent Collaboration',ev:'"Malicious agent could influence other agents" · "Chain reaction of incorrect decisions" — four agent types collaborating without isolation boundaries',bi:'Single agent compromise cascades across entire 150-agent fleet. All business functions compromised simultaneously — financial, customer service, data analytics, IT operations.',steps:['Deploy agent communication isolation zones by function type','Implement trust boundaries between agent types with cryptographic signing','Require signed messages for all agent-to-agent communications','Deploy agent reputation/trust scoring system','Create emergency agent shutdown and quarantine procedures']},
+  {id:'T-AGE-003',title:'Safety Constraint Bypass via Agent Jailbreaking',tactic:'Agentic AI',tech:'T-AGE-003',sev:'CRITICAL',L:3,I:5,owner:'AI Team',tl:'0–30 days',pri:'P0',doc:'01_Project_Overview.md — Critical Risks',ev:'"Agent Jailbreaking: Potential to bypass safety constraints" — acknowledged as known critical risk with no documented current mitigation in project overview',bi:'Complete safety system bypass — agent performs any action within technical capabilities regardless of business rules. Maximum risk across all agent types simultaneously.',steps:['Implement robust agent sandboxing at runtime level beyond prompts','Deploy constitutional AI constraints at infrastructure level','Create hardware-level execution boundaries for destructive operations','Regular red-team testing for jailbreak vulnerabilities','Implement behavioral kill switches for detected jailbreak patterns']},
+  {id:'T-AGE-004',title:'Unauthorized Agent Scope Creep',tactic:'Agentic AI',tech:'T-AGE-004',sev:'HIGH',L:4,I:4,owner:'Security Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Known Gaps',ev:'"Unauthorized Agent Actions: Agents could exceed authorized scope" — listed as explicit Known Gap with no documented current mitigation',bi:'Progressive scope expansion gradually increases attack surface. Agents performing out-of-scope actions may access restricted systems or data without triggering alerts.',steps:['Deploy real-time agent behavior monitoring against defined scope','Implement strict capability enforcement at runtime level','Create scope violation alerting and automatic agent suspension','Regular agent capability audits against defined role boundaries','Implement least-privilege principle enforcement for all agents']},
+  {id:'T-MOD-003',title:'Model Drift — No Automated Retraining Pipeline',tactic:'Model Risk',tech:'T-MOD-003',sev:'HIGH',L:4,I:3,owner:'ML Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — High Risks',ev:'"Model Drift: Production models degrade over time, no automated retraining" — explicitly listed as high risk with current gap in project overview documentation',bi:'Progressive model performance degradation causes increasing error rates in agent decisions. Security-critical decisions (fraud detection, anomaly detection) become unreliable over time.',steps:['Implement automated model performance monitoring with baselines','Deploy drift detection algorithms on all production models','Create automated retraining pipeline triggered by drift thresholds','Set up A/B testing framework for safe model updates','Define SLA for model performance degradation tolerance']},
+  {id:'T-PRI-001',title:'PII Exposure to External LLM Providers',tactic:'Privacy Risk',tech:'T-PRI-001',sev:'CRITICAL',L:4,I:5,owner:'Privacy Team',tl:'0–30 days',pri:'P0',doc:'03_Data_Flow_Diagram.md — Sensitive Data Flows',ev:'"Agent → External LLM APIs: Prompts may contain PII, trade secrets" — 2M+ customer PII records accessible — Claude Sonnet 4 API and OpenAI API both used by agents',bi:'GDPR Article 44 violation — PII transfer to external processor without documented DPA. Potential fines up to 4% of annual global turnover. Reputational damage across 50 enterprise clients.',steps:['Deploy automated PII detection in all outbound LLM prompts','Implement data masking/tokenization before all API calls','Create DPA documentation for all LLM providers used','Deploy Anthropic ZDR for customer data in Claude API calls','Implement prompt logging and PII audit trail for compliance']},
+  {id:'T-PRI-004',title:'HIPAA Violation via Improper PHI Handling',tactic:'Privacy Risk',tech:'T-PRI-004',sev:'HIGH',L:2,I:5,owner:'Privacy Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Healthcare Clients',ev:'"Healthcare Data: PHI for healthcare clients (HIPAA)" — specific healthcare client data processed by agents without documented HIPAA-compliant controls in architecture',bi:'HIPAA violation penalties up to $1.9M per violation category per year. Healthcare client contract terminations. Regulatory investigation and potential criminal liability.',steps:['Implement HIPAA-compliant data handling controls for all PHI','Create separate PHI processing environment with enhanced controls','Deploy PHI access logging and access control matrix','Train agents to recognize and specially handle PHI data types','Execute BAA with all PHI data subprocessors']},
+  {id:'T-DAT-004',title:'Banking API Financial Data Exposure',tactic:'Data Security',tech:'T-DAT-004',sev:'HIGH',L:3,I:5,owner:'Finance Team',tl:'30–90 days',pri:'P1',doc:'02_System_Architecture.md — Integration Layer',ev:'"Banking APIs: Payment processing, account access" — financial data flowing through API gateway without documented DLP or financial data classification controls',bi:'Financial data exposure through API vulnerabilities. PCI DSS compliance violation. Banking partner relationship damage. Direct financial fraud enablement across all payment APIs.',steps:['Implement API security hardening for all banking endpoints','Deploy financial data classification and DLP controls','Create API access audit logging for all financial operations','Implement tokenization for stored financial credentials','Regular penetration testing of all banking API integrations']},
+  {id:'F016',title:'Cloud Account Compromise — Broad Engineer Access',tactic:'Initial Access',tech:'T1078.004',sev:'HIGH',L:3,I:4,owner:'IAM Team',tl:'30–90 days',pri:'P1',doc:'02_System_Architecture.md — Authentication',ev:'"OAuth 2.0, API keys, mutual TLS" with "Engineers have broad access to agent systems" — just-in-time access not documented in current architecture',bi:'Compromised engineer credentials grant broad persistent access to all agent systems. No JIT access means high-privilege credentials permanently at risk.',steps:['Implement just-in-time (JIT) access for all privileged operations','Deploy privileged access management (PAM) solution','Enable MFA enforcement for all agent system access','Implement credential usage anomaly detection','Regular access review and certification process']},
+  {id:'F017',title:'Scheduled Job Exploitation via Airflow',tactic:'Execution',tech:'T1053.003',sev:'MEDIUM',L:3,I:3,owner:'DevOps Team',tl:'90–180 days',pri:'P2',doc:'03_Data_Flow_Diagram.md — Automated Reports',ev:'"Scheduled Job - Airflow → Daily at 8 AM UTC → Deploy Data Analysis Agent" — automated deployment without documented approval workflow or job integrity verification',bi:'Attacker injects malicious scheduled jobs to deploy compromised agents or exfiltrate data during automated processing windows undetected.',steps:['Implement approval workflow for all scheduled job modifications','Deploy job definition integrity verification (checksums)','Monitor Airflow for unauthorized job creation/modification','Implement job execution sandboxing','Create allowlist of approved scheduled job types and parameters']},
+  {id:'F018',title:'Event-Triggered Agent Auto-Deployment',tactic:'Persistence',tech:'T1546.003',sev:'HIGH',L:3,I:4,owner:'Architecture Team',tl:'30–90 days',pri:'P1',doc:'02_System_Architecture.md — Event Bus',ev:'"AWS EventBridge for event-driven architecture" with agent auto-deployment — no documented event validation or deployment approval controls in architecture',bi:'Attacker triggers unauthorized agent deployments via crafted EventBridge events. Persistence mechanism allows re-deployment of malicious agents after detection and removal.',steps:['Implement event validation and schema enforcement for EventBridge','Require multi-person approval for agent deployment events','Deploy EventBridge event monitoring and anomaly filtering','Create agent deployment immutable audit log','Implement rollback capability for unauthorized deployments']},
+  {id:'F019',title:'Unauthorized Agent Creation via API',tactic:'Persistence',tech:'T1136.003',sev:'HIGH',L:3,I:4,owner:'API Team',tl:'30–90 days',pri:'P1',doc:'04_API_Specification.md — Agent Creation',ev:'"POST /agents" endpoint with "agents:write" scope allowing agent creation — no multi-person approval requirement documented in API specification',bi:'Unauthorized agent deployment by compromised account creates persistent backdoor agents with elevated permissions that survive standard incident response.',steps:['Require multi-person approval for all new agent creation requests','Implement agent creation rate limiting and anomaly detection','Deploy agent inventory management with regular reconciliation','Create mandatory security review for new agent templates','Implement agent creation audit logging with full provenance']},
+  {id:'F020',title:'Access Token Manipulation and Theft',tactic:'Privilege Escalation',tech:'T1134.001',sev:'HIGH',L:3,I:5,owner:'Security Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Critical Data',ev:'"Agent Authorization Tokens: Elevated permissions for autonomous actions" — token rotation policy not documented — tokens used across all 150+ agents',bi:'Stolen agent authorization tokens grant attacker full agent capabilities including financial transactions and infrastructure admin access without additional authentication.',steps:['Implement short-lived token rotation (max 1-hour TTL)','Deploy token usage monitoring and anomaly detection','Implement token binding to specific agent identity','Create token revocation capability with immediate effect','Deploy token leak detection in logs and error messages']},
+  {id:'F021',title:'Command Obfuscation in Prompt Inputs',tactic:'Defense Evasion',tech:'T1027.010',sev:'CRITICAL',L:5,I:4,owner:'AI Team',tl:'0–30 days',pri:'P0',doc:'01_Project_Overview.md — Critical Risks',ev:'"Prompt Injection Vulnerabilities: Agents may be manipulated via crafted inputs" — obfuscated commands use encoding/character substitution to bypass simple keyword filtering',bi:'Risk score 20/25. Sophisticated attackers bypass prompt injection detection using base64, Unicode homoglyphs, and indirect phrasing. High likelihood (5/5) in current state.',steps:['Deploy semantic-level prompt analysis beyond keyword filtering','Implement multi-layer injection detection (regex + ML + LLM-based)','Create adversarial testing suite for novel prompt injection variants','Deploy encoding detection (base64, Unicode, homoglyph attacks)','Regular red-team testing with novel injection techniques']},
+  {id:'F022',title:'Unsecured Credentials in Agent Redis Memory',tactic:'Credential Access',tech:'T1552.001',sev:'HIGH',L:3,I:5,owner:'Security Team',tl:'30–90 days',pri:'P1',doc:'01_Project_Overview.md — Critical Data',ev:'"Client API Keys & Secrets: Access to client systems" stored for agent access — Redis memory (24-hour TTL) may contain credentials for 50 enterprise client systems',bi:'Agent memory compromise exposes all stored client credentials. Access to 50 enterprise client systems via stolen API keys — massive lateral movement opportunity.',steps:['Implement just-in-time credential provisioning (no persistent storage)','Remove all credentials from Redis agent memory immediately','Deploy HashiCorp Vault dynamic secrets for agent credential access','Implement per-session credential auditing','Create credential compromise detection and rapid revocation workflow']},
+  {id:'F023',title:'Cloud Account Discovery via Agent Registry',tactic:'Discovery',tech:'T1087.004',sev:'MEDIUM',L:3,I:3,owner:'Security Team',tl:'90–180 days',pri:'P2',doc:'02_System_Architecture.md — Agent Registry',ev:'"Agent Registry: Central catalog of all agents" with full capability and permission mapping — potentially exposes complete agent capability map to any compromised agent',bi:'Attacker uses compromised agent to enumerate all other agents, capabilities, and permission levels — enables highly targeted follow-on attacks against highest-value agents.',steps:['Implement agent discovery access controls (need-to-know basis)','Remove full capability exposure from shared agent registry','Deploy registry access monitoring with anomaly detection','Implement agent capability obfuscation for sensitive functions','Regular registry audit for overly permissive access grants']},
+  {id:'F024',title:'Webhook Registration for Bidirectional C2 Channel',tactic:'Command & Control',tech:'T1102.002',sev:'MEDIUM',L:3,I:3,owner:'API Team',tl:'90–180 days',pri:'P2',doc:'04_API_Specification.md — Webhooks',ev:'"Register Webhook" functionality allowing external communication to arbitrary URLs — potential covert channel for attacker command and control via legitimate API pathway',bi:'Compromised agent registers webhooks to receive commands from attacker servers via legitimate API channel — bypasses network monitoring and IDS/IPS controls.',steps:['Implement webhook URL allowlisting for approved domains only','Deploy webhook registration approval workflow with verification','Monitor all webhook traffic for anomalous content patterns','Implement webhook payload validation and content filtering','Create webhook audit log with sufficient retention for forensics']},
+  {id:'F025',title:'Data Exfiltration via Report Email Channel',tactic:'Exfiltration',tech:'T1567.002',sev:'HIGH',L:3,I:4,owner:'Security Team',tl:'30–90 days',pri:'P1',doc:'03_Data_Flow_Diagram.md — Report Generation',ev:'"SendGrid API → Email to: executives@company.com" with business data — exfiltration via legitimate automated email report channel bypasses DLP controls entirely',bi:'Business data, customer PII, and financial information exfiltrated via legitimate email report channel. Extremely difficult to detect as indistinguishable from normal business activity.',steps:['Implement email content monitoring and DLP for all report emails','Create data classification enforcement for email report attachments','Deploy anomaly detection for unusual report content or recipients','Implement report generation approval for sensitive data categories','Create recipient allowlisting for reports containing confidential data']}
+];
+
+const MITRE=[
+  {id:'TA0001',name:'Initial Access',cells:[{id:'T1566.001',name:'Spearphishing Email',sev:'c',score:'20'},{id:'T1078.004',name:'Cloud Accounts',sev:'h',score:'12'},{id:'T1190',name:'Exploit Public App',sev:'m',score:'9'}]},
+  {id:'TA0002',name:'Execution',cells:[{id:'T1059.006',name:'Python Interpreter',sev:'h',score:'16'},{id:'T1053.003',name:'Scheduled Task/Job',sev:'m',score:'9'}]},
+  {id:'TA0003',name:'Persistence',cells:[{id:'T1546.003',name:'Event Triggered',sev:'h',score:'12'},{id:'T1136.003',name:'Create Cloud Acct',sev:'h',score:'12'}]},
+  {id:'TA0004',name:'Privilege Esc.',cells:[{id:'T1548.001',name:'Setuid & Setgid',sev:'c',score:'20'},{id:'T1134.001',name:'Token Impersonation',sev:'h',score:'15'}]},
+  {id:'TA0005',name:'Defense Evasion',cells:[{id:'T1070.001',name:'Clear Audit Logs',sev:'h',score:'16'},{id:'T1027.010',name:'Cmd Obfuscation',sev:'c',score:'20'}]},
+  {id:'TA0006',name:'Cred. Access',cells:[{id:'T1555.005',name:'Password Stores',sev:'m',score:'10'},{id:'T1552.001',name:'Unsecured Creds',sev:'h',score:'15'}]},
+  {id:'TA0007',name:'Discovery',cells:[{id:'T1087.004',name:'Cloud Acct. Disc.',sev:'m',score:'9'},{id:'T1083',name:'File & Dir Disc.',sev:'h',score:'12'}]},
+  {id:'TA0008',name:'Lateral Move.',cells:[{id:'T1021.007',name:'Cloud Services',sev:'h',score:'16'},{id:'T1550.001',name:'App Access Token',sev:'h',score:'12'}]},
+  {id:'TA0009',name:'Collection',cells:[{id:'T1005',name:'Data from Sys.',sev:'c',score:'20'},{id:'T1213.003',name:'Code Repositories',sev:'m',score:'6'}]},
+  {id:'TA0010',name:'Command & Ctrl',cells:[{id:'T1071.001',name:'Web Protocols',sev:'h',score:'12'},{id:'T1102.002',name:'Bidir. Web Svc.',sev:'m',score:'9'}]},
+  {id:'TA0011',name:'Exfiltration',cells:[{id:'T1041',name:'Exfil Over C2',sev:'c',score:'20'},{id:'T1567.002',name:'Exfil to Cloud',sev:'h',score:'12'}]},
+  {id:'TA0012',name:'Impact',cells:[{id:'T1485',name:'Data Destruction',sev:'h',score:'15'},{id:'T1499.004',name:'App / Sys DoS',sev:'h',score:'15'},{id:'T1565.001',name:'Stored Data Manip.',sev:'h',score:'16'}]}
+];
+
+const SPEC=[
+  {title:'Agentic AI Risk',icon:'🤖',grade:'CRITICAL',gc:'c',items:[{l:'Autonomous financial fraud (confidence manipulation)',v:'P0 · 4×5 = 20',c:'c'},{l:'Agent-to-agent attack propagation via gRPC',v:'P0 · 4×5 = 20',c:'c'},{l:'Safety constraint bypass — jailbreaking (known risk)',v:'P0 · 3×5 = 15',c:'c'},{l:'Unauthorized agent scope creep (known gap)',v:'P1 · 4×4 = 16',c:'h'},{l:'Coordinated multi-agent malicious actions (4 types)',v:'P1 · 3×4 = 12',c:'h'}]},
+  {title:'Model Risk',icon:'🧬',grade:'HIGH',gc:'h',items:[{l:'Training data poisoning → biased decisions at scale',v:'P0 · 3×5 = 15',c:'c'},{l:'Hallucination → incorrect autonomous actions (L=4)',v:'P0 · 4×4 = 16',c:'c'},{l:'Model drift — no automated retraining (known risk)',v:'P1 · 4×3 = 12',c:'h'},{l:'Adversarial attack surface — models not hardened',v:'P1 · 3×4 = 12',c:'h'},{l:'Training data PII memorization → regurgitation',v:'P1 · 3×4 = 12',c:'h'}]},
+  {title:'Privacy Risk',icon:'🔒',grade:'CRITICAL',gc:'c',items:[{l:'PII in external LLM API prompts (2M+ records)',v:'P0 · 4×5 = 20',c:'c'},{l:'Unauthorized customer PII access by agents',v:'P0 · 3×5 = 15',c:'c'},{l:'Autonomous data modification violating consent',v:'P1 · 3×4 = 12',c:'h'},{l:'HIPAA violation — PHI for healthcare clients',v:'P1 · 2×5 = 10',c:'h'},{l:'Incomplete deletion — right to be forgotten',v:'P1 · 3×4 = 12',c:'h'}]},
+  {title:'Data Security Risk',icon:'🗄',grade:'HIGH',gc:'h',items:[{l:'Master encryption keys — single point of failure',v:'P0 · 2×5 = 10',c:'h'},{l:'Legacy system data transmission (TLS 1.2 only)',v:'P0 · 3×4 = 12',c:'c'},{l:'Unencrypted log data at rest ("TLS only" in docs)',v:'P1 · 3×3 = 9',c:'h'},{l:'Banking API financial data exposure',v:'P1 · 3×5 = 15',c:'h'},{l:'Backup data — no encryption documented',v:'P2 · 2×4 = 8',c:'m'}]}
+];
+
+const COMP=[
+  {title:'Agent Orchestration Layer',icon:'🎛',sev:'CRITICAL',sc:'c',doc:'02_System_Architecture.md — Agent Manager Service',ev:'"Deploy and scale AI agents" · "Manage agent lifecycle"',threats:['Unauthorized agent deployment','Privilege escalation via deployment','Agent lifecycle manipulation','Rogue agent persistence'],mit:'Multi-person approval, deployment controls, lifecycle audit logging'},
+  {title:'AI Agent Layer',icon:'🤖',sev:'CRITICAL',sc:'c',doc:'01_Project_Overview.md — Agent Types',ev:'"150+ autonomous agents" · "Execute financial transactions up to $100K"',threats:['Financial fraud ($100K/txn)','Prompt injection exploitation','Unauthorized scope creep','Safety constraint bypass'],mit:'Transaction limits, decision validation, behavioral monitoring'},
+  {title:'API Gateway Layer',icon:'🚪',sev:'HIGH',sc:'h',doc:'04_API_Specification.md — Authentication',ev:'"Rate limit: 1,000 req/min" · "OAuth 2.0, API keys"',threats:['API rate limit bypass','Credential compromise','Webhook C2 channel','Unauthorized agent creation'],mit:'Enhanced rate limiting, MFA enforcement, API threat detection'},
+  {title:'Data Layer',icon:'🗄',sev:'CRITICAL',sc:'c',doc:'02_System_Architecture.md — Data Stores',ev:'"PostgreSQL (customer data)" · "50M+ vectors" · "2M+ records"',threats:['PII data breach (2M+ records)','Unauthorized agent data access','SQL injection via agent queries','Snowflake warehouse exfiltration'],mit:'Data classification, fine-grained access monitoring, query sandboxing'},
+  {title:'Integration Layer',icon:'🔌',sev:'HIGH',sc:'h',doc:'02_System_Architecture.md — External APIs',ev:'"Banking APIs" · "CRM Systems" · "Payment Processors"',threats:['Third-party API compromise','Banking fraud via API','Financial data leakage','Supply chain attack vector'],mit:'API security hardening, vendor risk monitoring, financial DLP'},
+  {title:'Monitoring & Logging Layer',icon:'📊',sev:'HIGH',sc:'h',doc:'01_Project_Overview.md — Known Gaps',ev:'"Insufficient Audit Trail: Not all agent decisions fully logged"',threats:['Blind spots in incident detection','Forensic investigation gaps','Audit log manipulation (T1070)','SOC 2 CC7.2 non-compliance'],mit:'Comprehensive logging, SIEM enhancement, immutable WORM audit trail'}
+];
+
+const RECS={
+  p0:[
+    {id:'R001',title:'Implement Agent Privilege Boundaries with Multi-Factor Validation',eff:'3–4 weeks',own:'Security Team',pct:70,steps:['Define strict transaction limits per agent type (Level 1–5 autonomy tiers)','Implement multi-factor human validation for all transactions >$10K','Deploy real-time privilege monitoring and alert on any violations','Enforce hardcoded transaction ceilings in agent runtime (not just prompt)','Audit all 150+ agents for current privilege levels against defined policy']},
+    {id:'R002',title:'Deploy ML-Based Prompt Injection Detection System',eff:'2–3 weeks',own:'AI Team',pct:80,steps:['Implement input sanitization for all customer-facing communications','Deploy ML-based prompt injection detection (LLM Guard or equivalent)','Create explicit semantic prompt validation rules and blocklists','Sandbox all LLM calls to prevent document content from overriding system instructions','Add output validation layer to detect abnormal agent decision patterns']},
+    {id:'R003',title:'Establish Multi-Agent Communication Isolation Zones',eff:'3–4 weeks',own:'Architecture Team',pct:75,steps:['Implement inter-agent authentication beyond mTLS — add request signing','Create per-function agent communication allow-listing','Deploy real-time inter-agent behavior monitoring with anomaly detection','Require human approval for cross-agent coordination on high-stakes tasks','Implement agent isolation zones preventing unauthorized lateral communication']},
+    {id:'R004',title:'Implement PII Redaction for All External LLM API Calls',eff:'2–3 weeks',own:'Privacy Team',pct:85,steps:['Deploy automated PII detection (regex + ML NER) in all outbound prompts','Implement automatic data masking/tokenization before Claude/OpenAI API calls','Enable Anthropic ZDR (Zero Data Retention) for all customer data API calls','Create comprehensive audit trail for all data categories sent to LLM providers','Execute DPA documentation with all LLM providers acting as data processors']},
+    {id:'R005',title:'Deploy Immutable Agent Decision Audit Logging (WORM)',eff:'3–4 weeks',own:'Compliance Team',pct:60,steps:['Implement comprehensive decision logging for all 150+ agent action types','Deploy WORM (Write Once Read Many) storage for tamper-proof audit trail','Create decision replay capability for post-incident forensic analysis','Ensure 100% coverage — eliminate the "not all decisions logged" known gap','Set up real-time alerting for anomalous agent decision patterns and frequencies']}
+  ],
+  p1:[
+    {id:'R010',title:'Deploy Model Security Hardening and Automated Drift Monitoring',eff:'6–8 weeks',own:'ML Team',pct:65,steps:['Implement adversarial robustness testing against known attack pattern taxonomy','Deploy automated model drift detection with well-defined performance baselines','Create automated retraining pipeline triggered by defined drift thresholds','Implement differential privacy and PII sanitization in all training data pipelines','Set up model behavioral red-lining tests for all security-critical agent decisions']},
+    {id:'R011',title:'Implement Infrastructure Change Controls for IT Ops Agents',eff:'4–6 weeks',own:'DevOps Team',pct:70,steps:['Require explicit human approval for all infrastructure changes by IT Ops agents','Deploy change monitoring with automated rollback capability and verification','Create infrastructure change impact assessment before any execution','Implement circuit breakers for destructive operations (protecting $500K/hr SLA)','Build emergency agent suspension and full infrastructure rollback procedures']},
+    {id:'R012',title:'Enhance Real-Time Financial Fraud Detection Across All Agents',eff:'6–8 weeks',own:'Finance Team',pct:60,steps:['Implement real-time transaction pattern analysis across all 20 financial agents','Deploy behavioral analytics with agent baseline deviation detection thresholds','Create velocity checks for transaction amounts, frequencies, and recipient patterns','Set up fraud response runbook with automatic blocking on threshold breach','Integrate with banking API native fraud detection capabilities for dual-layer protection']},
+    {id:'R013',title:'Deploy Comprehensive Agent Behavior Analytics and SIEM Integration',eff:'5–7 weeks',own:'Security Team',pct:55,steps:['Implement agent behavior baselines across all 150+ deployed agents','Deploy ML-based anomaly detection for behavioral deviations from baseline','Create automated response procedures including agent isolation for anomalies','Build agent reputation scoring system to detect gradually compromised instances','Implement SIEM integration for centralized security monitoring and correlation']},
+    {id:'R014',title:'Strengthen API Security — Distributed Rate Limiting and MFA',eff:'4–6 weeks',own:'API Team',pct:50,steps:['Implement distributed rate limiting across all API gateways (not per-key only)','Add IP-based and behavioral throttling layers beyond per-key rate limits','Deploy MFA enforcement for all privileged API endpoints and agent creation','Implement JWT token binding and short-TTL rotation policy (max 1 hour)','Create API threat detection for pattern-based attack recognition and blocking']}
+  ],
+  p2:[
+    {id:'R020',title:'Implement Zero Trust Architecture Across Agent Fleet',eff:'8–12 weeks',own:'Security Team',pct:40,steps:['Deploy micro-segmentation between all agent types and data system categories','Implement continuous identity verification for every individual agent action','Create identity-based access controls replacing network-perimeter-based trust','Build continuous authorization assessment for long-running agent sessions','Deploy zero-trust network access (ZTNA) for all agent-to-system communications']},
+    {id:'R021',title:'Enhance Backup Security with AES-256 Encryption and Access Controls',eff:'6–8 weeks',own:'Infrastructure Team',pct:45,steps:['Implement AES-256 encryption for all backup data at rest immediately','Deploy separate IAM policies for backup access (no overlap with production)','Create backup integrity verification with automated weekly testing','Monitor backup access with anomaly detection and real-time alerting','Test backup restoration quarterly with full security verification process']},
+    {id:'R022',title:'Deploy Supply Chain Security and Vendor Risk Management Program',eff:'10–12 weeks',own:'Security Team',pct:35,steps:['Implement automated dependency scanning in CI/CD pipeline for all code','Create formal vendor security assessment process for all API integrations','Deploy software composition analysis (SCA) for all third-party dependencies','Monitor third-party API behavior continuously for anomalous patterns','Create contract provisions and third-party incident response procedures']}
+  ]
+};
+
+// ── BUILD MITRE MAP ──
+function buildMitre(){
+  const el=document.getElementById('mitreMap');
+  MITRE.forEach(t=>{
+    const col=document.createElement('div');col.className='mitre-col';
+    col.innerHTML=`<div class="mitre-head"><div class="mitre-head-id">${t.id}</div><div class="mitre-head-name">${t.name}</div></div>`;
+    t.cells.forEach(c=>{
+      const cell=document.createElement('div');cell.className=`mitre-cell ${c.sev}`;
+      cell.innerHTML=`<span class="mitre-cid">${c.id}</span><span class="mitre-cname">${c.name}</span><span class="mitre-score">Score: ${c.score}/25</span>`;
+      cell.onclick=()=>{const f=FD.find(x=>x.tech===c.id);if(f)openM(f);};
+      col.appendChild(cell);
+    });
+    el.appendChild(col);
+  });
+}
+
+// ── BUILD FINDINGS TABLE ──
+function buildFindings(){
+  const tb=document.getElementById('ftbody');
+  FD.forEach(f=>{
+    const sc=f.L*f.I,sc2=f.sev==='CRITICAL'?'c':f.sev==='HIGH'?'h':'m';
+    const tl2=f.tl.includes('0–30')?'c':f.tl.includes('30–90')?'h':'m';
+    const tr=document.createElement('tr');tr.className='fr';tr.id=`row-${f.id}`;
+    tr.dataset.sev=f.sev;tr.dataset.s=`${f.id} ${f.title} ${f.tactic} ${f.tech} ${f.owner}`.toLowerCase();
+    tr.innerHTML=`<td><span class="fid">${f.id}</span></td><td style="max-width:240px"><div class="ftitle">${f.title}</div><div class="fdoc">${f.doc.split(' — ')[0]}</div></td><td><span class="ftactic">${f.tactic}</span></td><td><span class="tag">${f.tech}</span></td><td><span class="pill ${sc2}">${f.sev}</span></td><td><span class="fscore" style="color:var(--${sc2==='c'?'c':sc2==='h'?'h':'m'})">${f.L}×${f.I}=${sc}</span></td><td style="font-size:12px;color:var(--t2);font-weight:500">${f.owner}</td><td style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--${tl2})">${f.tl}</td><td onclick="event.stopPropagation()"><button class="ap-btn" id="apbtn-${f.id}" onclick="toggleAP('${f.id}')">+ Add to Plan</button></td>`;
+    tr.onclick=()=>openM(f);tb.appendChild(tr);
+  });
+}
+
+// ── BUILD SPECIALIZED ──
+function buildSpec(){
+  const el=document.getElementById('specGrid');
+  SPEC.forEach(s=>{
+    const d=document.createElement('div');d.className='spec-card';
+    d.innerHTML=`<div class="spec-header"><div class="spec-title-row"><span class="spec-icon">${s.icon}</span><div><div class="spec-title">${s.title}</div><div class="spec-sub">5 findings · click items for details</div></div></div><span class="pill ${s.gc}">${s.grade}</span></div>${s.items.map(i=>`<div class="spec-item"><span class="spec-item-lbl">${i.l}</span><span class="spec-item-val" style="color:var(--${i.c==='c'?'c':i.c==='h'?'h':'m'})">${i.v}</span></div>`).join('')}`;
+    el.appendChild(d);
+  });
+}
+
+// ── BUILD COMPONENTS ──
+function buildComp(){
+  const el=document.getElementById('compGrid');
+  COMP.forEach(c=>{
+    const d=document.createElement('div');d.className='comp-card';
+    d.innerHTML=`<div class="comp-header"><div class="spec-title-row"><span class="comp-icon">${c.icon}</span><div><div class="spec-title">${c.title}</div><div class="spec-sub">${c.doc.split(' — ')[0]}</div></div></div><span class="pill ${c.sc}">${c.sev}</span></div><div class="comp-row" style="background:var(--surface2)"><span class="comp-row-lbl" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;font-weight:600">Document Evidence</span><span class="comp-row-val" style="color:var(--t2)">${c.ev}</span></div>${c.threats.map(t=>`<div class="comp-row"><span class="comp-row-lbl">${t}</span><span class="comp-row-val" style="color:var(--${c.sc==='c'?'c':'h'})">→ ${c.sc==='c'?'Critical':'High'}</span></div>`).join('')}<div class="comp-row" style="background:var(--lg)"><span class="comp-row-lbl" style="color:var(--l);font-weight:600">Mitigation</span><span class="comp-row-val" style="color:var(--lt)">${c.mit}</span></div>`;
+    el.appendChild(d);
+  });
+}
+
+// ── BUILD RECS ──
+function buildRecs(){
+  ['p0','p1','p2'].forEach(p=>{
+    const el=document.getElementById(`r${p}`),cls=p==='p0'?'c':p==='p1'?'h':'m';
+    const fc=p==='p0'?'var(--c)':p==='p1'?'var(--h)':'var(--m)';
+    RECS[p].forEach(r=>{
+      const d=document.createElement('div');d.className=`rec-card ${p}`;
+      d.innerHTML=`<div class="rec-top"><span class="rec-badge ${p}">${r.id}</span><div class="rec-title">${r.title}</div></div><ul class="rec-steps">${r.steps.map((s,i)=>`<li data-n="${i+1}">${s}</li>`).join('')}</ul><div class="rec-foot"><span class="rec-effort">⏱ ${r.eff} · ${r.own}</span><div class="rec-bar-row"><div class="rec-bar"><div class="rec-fill" data-w="${r.pct}" style="background:${fc};width:0%"></div></div><span class="rec-pct" style="color:${fc}">${r.pct}% ↓</span></div></div>`;
+      el.appendChild(d);
+    });
+  });
+}
+
+// ── MODAL ──
+let _currentModalFid=null;
+function openM(f){
+  _currentModalFid=f.id;
+  const sc=f.L*f.I,sc2=f.sev==='CRITICAL'?'c':f.sev==='HIGH'?'h':'m';
+  document.getElementById('mId').textContent=f.id;
+  const p=document.getElementById('mPill');p.textContent=f.sev;p.className=`pill ${sc2}`;
+  document.getElementById('mTitle').textContent=f.title;
+  document.getElementById('mTech').textContent=`${f.tactic} · ${f.tech} · ${f.doc}`;
+  document.getElementById('mEv').textContent=f.ev;
+  document.getElementById('mL').textContent=`${f.L} / 5`;
+  document.getElementById('mI').textContent=`${f.I} / 5`;
+  document.getElementById('mSc').innerHTML=`<strong style="color:var(--${sc2})">${sc} / 25</strong>`;
+  document.getElementById('mPr').textContent=f.pri;
+  document.getElementById('mOw').textContent=f.owner;
+  document.getElementById('mTi').innerHTML=`<span style="color:var(--${f.tl.includes('0–30')?'c':f.tl.includes('30–90')?'h':'m'})">${f.tl}</span>`;
+  document.getElementById('mBi').textContent=f.bi;
+  document.getElementById('mSt').innerHTML=f.steps.map((s,i)=>`<li data-n="${i+1}">${s}</li>`).join('');
+  // sync modal AP button
+  const inPlan=actionPlan.has(f.id);
+  const mApBtn=document.getElementById('mApBtn');
+  mApBtn.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';
+  mApBtn.className=`ap-btn${inPlan?' in-plan':''}`;
+  mApBtn.style.marginTop='14px';mApBtn.style.width='100%';mApBtn.style.justifyContent='center';mApBtn.style.padding='10px';mApBtn.style.fontSize='12px';
+  document.getElementById('mOverlay').classList.add('open');
+}
+function closeM(e){if(e.target===document.getElementById('mOverlay'))document.getElementById('mOverlay').classList.remove('open');}
+
+// ── FILTER / SORT ──
+function filterF(){
+  const sv=document.getElementById('fsearch').value.toLowerCase();
+  const ab=document.querySelector('.fbtn.fc,.fbtn.fh,.fbtn.fm');
+  const sf=ab?ab.textContent.trim().toUpperCase().split(' ')[0]:'ALL';
+  let n=0;
+  document.querySelectorAll('#ftbody tr.fr').forEach(r=>{
+    const ok=(!sv||r.dataset.s.includes(sv))&&(sf==='ALL'||r.dataset.sev===sf);
+    r.style.display=ok?'':'none';if(ok)n++;
+  });
+  document.getElementById('fcount').textContent=`Showing ${n} of ${FD.length} findings`;
+}
+function setF(b,f){
+  document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('fa','fc','fh','fm'));
+  if(f==='ALL')b.classList.add('fa');else if(f==='CRITICAL')b.classList.add('fc');else if(f==='HIGH')b.classList.add('fh');else b.classList.add('fm');
+  filterF();
+}
+let sd={};
+function sortT(c){
+  const tb=document.getElementById('ftbody');
+  const rows=[...tb.querySelectorAll('tr.fr')];sd[c]=!sd[c];
+  rows.sort((a,b)=>{const aT=a.cells[c].textContent.trim(),bT=b.cells[c].textContent.trim();return sd[c]?aT.localeCompare(bT):bT.localeCompare(aT);});
+  rows.forEach(r=>tb.appendChild(r));
+  document.querySelectorAll('th').forEach((t,i)=>t.classList.toggle('sorted',i===c));
+}
+
+// ── TABS ──
+function swapAp(b,p){document.querySelectorAll('.ap-tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.ap-panel').forEach(t=>t.classList.remove('active'));b.classList.add('active');document.getElementById(p).classList.add('active');}
+function swapRec(b,p){document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('rc','rh','rm'));document.querySelectorAll('.rec-panel').forEach(t=>t.classList.remove('active'));const c=p==='rp0'?'rc':p==='rp1'?'rh':'rm';b.classList.add(c);document.getElementById(p).classList.add('active');}
+
+// ── NODE TOOLTIPS ──
+function initTooltips(){
+  const tt=document.getElementById('nodeTip');
+  document.querySelectorAll('.ap-node').forEach(n=>{
+    n.addEventListener('mouseenter',()=>{
+      document.getElementById('ntT').textContent=n.dataset.title||'';
+      const s=document.getElementById('ntS');s.textContent=n.dataset.sev||'';
+      s.style.color=n.dataset.sev==='CRITICAL'?'var(--c)':n.dataset.sev==='HIGH'?'var(--h)':'var(--t2)';
+      document.getElementById('ntD').textContent=n.dataset.doc||'';
+      document.getElementById('ntE').textContent=n.dataset.evidence||'';
+      document.getElementById('ntI').textContent=n.dataset.impact||'';
+      document.getElementById('ntR').textContent=n.dataset.ref||'';
+      tt.classList.add('vis');
+    });
+    n.addEventListener('mousemove',e=>{
+      const x=e.clientX+16,y=e.clientY-16;
+      tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-32:x)+'px';
+      tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
+    });
+    n.addEventListener('mouseleave',()=>tt.classList.remove('vis'));
+    n.addEventListener('click',()=>{if(n.dataset.ref){const f=FD.find(x=>x.tech===n.dataset.ref);if(f){tt.classList.remove('vis');openM(f);}}});
+  });
+}
+
+// ── SCROLL NAV ──
+function initScroll(){
+  const secs=document.querySelectorAll('.page-section');
+  const navs=document.querySelectorAll('.nav-item');
+  new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.nav-item[href="#${e.target.id}"]`);if(a)a.classList.add('active');}});
+  },{threshold:0.25,rootMargin:'-80px 0px -60% 0px'}).observe&&secs.forEach(s=>new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.nav-item[href="#${e.target.id}"]`);if(a)a.classList.add('active');}});},{threshold:0.25}).observe(s));
+}
+
+// ── BARS OBSERVER ──
+function initBars(){
+  new IntersectionObserver(es=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        e.target.querySelectorAll('[data-w]').forEach(b=>{b.style.width=b.dataset.w+'%';});
+      }
+    });
+  },{threshold:0.1}).observe&&document.querySelectorAll('.page-section').forEach(s=>new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.querySelectorAll('[data-w]').forEach(b=>{b.style.width=b.dataset.w+'%';});});},{threshold:0.05}).observe(s));
+}
+
+// ── ACTION PLAN SYSTEM ──
+const actionPlan = new Map(); // id → {assignee, dueDate, notes, addedAt}
+
+function toggleAP(id){
+  if(!id)return;
+  if(actionPlan.has(id)){
+    actionPlan.delete(id);
+  } else {
+    const f=FD.find(x=>x.id===id);
+    if(f) actionPlan.set(id,{assignee:f.owner,dueDate:'',notes:'',addedAt:new Date().toISOString()});
+  }
+  refreshAPButtons(id);
+  renderActionPlan();
+  updateAPNav();
+}
+
+function refreshAPButtons(id){
+  const inPlan=actionPlan.has(id);
+  // Row button
+  const rb=document.getElementById(`apbtn-${id}`);
+  if(rb){rb.textContent=inPlan?'✓ In Plan':'+ Add to Plan';rb.className=`ap-btn${inPlan?' in-plan':''}`;}
+  // Row highlight
+  const row=document.getElementById(`row-${id}`);
+  if(row){if(inPlan)row.classList.add('tr-planned');else row.classList.remove('tr-planned');}
+  // Modal button
+  if(_currentModalFid===id){
+    const mb=document.getElementById('mApBtn');
+    if(mb){mb.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';mb.className=`ap-btn${inPlan?' in-plan':''}`;}
+  }
+}
+
+function updateAPNav(){
+  const n=actionPlan.size;
+  const nb=document.getElementById('navApCount');
+  const fab=document.getElementById('apFab');
+  const fc=document.getElementById('fabCount');
+  nb.textContent=n;nb.style.display=n>0?'flex':'none';
+  fab.classList.toggle('hidden',n===0);
+  if(fc)fc.textContent=n;
+}
+
+function renderActionPlan(){
+  const empty=document.getElementById('apEmpty');
+  const content=document.getElementById('apContent');
+  const list=document.getElementById('apList');
+  const summary=document.getElementById('apSummary');
+  const ts=document.getElementById('apTimestamp');
+
+  if(actionPlan.size===0){
+    empty.style.display='';content.style.display='none';return;
+  }
+  empty.style.display='none';content.style.display='';
+
+  // Timestamp
+  ts.textContent=`Generated ${new Date().toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  // Summary stats
+  const items=[...actionPlan.keys()].map(id=>FD.find(f=>f.id===id)).filter(Boolean);
+  const byPri={P0:0,P1:0,P2:0};
+  const bySev={CRITICAL:0,HIGH:0,MEDIUM:0};
+  items.forEach(f=>{byPri[f.pri]=(byPri[f.pri]||0)+1;bySev[f.sev]=(bySev[f.sev]||0)+1;});
+  summary.innerHTML=`
+    <div class="ap-sum-stat"><div class="ap-sum-num">${actionPlan.size}</div><div class="ap-sum-lbl">Total Items</div></div>
+    <div class="ap-sum-stat"><div class="ap-sum-num" style="color:var(--c)">${byPri.P0||0}</div><div class="ap-sum-lbl">P0 Critical</div></div>
+    <div class="ap-sum-stat"><div class="ap-sum-num" style="color:var(--h)">${byPri.P1||0}</div><div class="ap-sum-lbl">P1 High</div></div>
+    <div class="ap-sum-stat"><div class="ap-sum-num" style="color:var(--m)">${byPri.P2||0}</div><div class="ap-sum-lbl">P2 Medium</div></div>
+    <div class="ap-sum-stat"><div class="ap-sum-num" style="color:var(--c)">${bySev.CRITICAL||0}</div><div class="ap-sum-lbl">Critical Sev.</div></div>
+    <div class="ap-sum-stat"><div class="ap-sum-num" style="color:var(--h)">${bySev.HIGH||0}</div><div class="ap-sum-lbl">High Sev.</div></div>`;
+
+  // Sort: P0 first, then P1, then P2, then by score desc
+  items.sort((a,b)=>{
+    const po={'P0':0,'P1':1,'P2':2};
+    return (po[a.pri]-po[b.pri])||((b.L*b.I)-(a.L*a.I));
+  });
+
+  // Render cards
+  list.innerHTML='';
+  items.forEach(f=>{
+    const meta=actionPlan.get(f.id);
+    const sc=f.L*f.I,sc2=f.sev==='CRITICAL'?'c':f.sev==='HIGH'?'h':'m';
+    const pb=f.pri==='P0'?'p0-b':f.pri==='P1'?'p1-b':'p2-b';
+    const card=document.createElement('div');
+    card.className=`ap-item-card ${pb}`;card.id=`apcard-${f.id}`;
+    card.innerHTML=`
+      <div class="ap-item-head">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+            <span class="fid">${f.id}</span>
+            <span class="pill ${sc2}">${f.sev}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);font-weight:600">${f.tech} · L${f.L}×I${f.I}=${sc}</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--t1);line-height:1.35;margin-bottom:3px">${f.title}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);font-weight:500">${f.tactic} · ${f.doc.split(' — ')[0]}</div>
+        </div>
+        <button class="ap-rm" onclick="toggleAP('${f.id}')" title="Remove from plan">✕</button>
+      </div>
+      <div class="ap-item-meta">
+        <div><span class="ap-meta-label">Assigned To</span><input class="ap-meta-input" id="apm-assignee-${f.id}" placeholder="e.g. ${f.owner}" value="${meta.assignee||''}" oninput="updateMeta('${f.id}','assignee',this.value)"></div>
+        <div><span class="ap-meta-label">Due Date</span><input class="ap-meta-input" id="apm-due-${f.id}" type="date" value="${meta.dueDate||''}" oninput="updateMeta('${f.id}','dueDate',this.value)"></div>
+        <div><span class="ap-meta-label">Status</span><select class="ap-meta-input" id="apm-status-${f.id}" oninput="updateMeta('${f.id}','status',this.value)"><option value="Open" ${(!meta.status||meta.status==='Open')?'selected':''}>Open</option><option value="In Progress" ${meta.status==='In Progress'?'selected':''}>In Progress</option><option value="Complete" ${meta.status==='Complete'?'selected':''}>Complete</option><option value="Deferred" ${meta.status==='Deferred'?'selected':''}>Deferred</option></select></div>
+        <div style="grid-column:1/-1"><span class="ap-meta-label">Notes</span><input class="ap-meta-input" id="apm-notes-${f.id}" placeholder="Add notes, blockers, or context…" value="${meta.notes||''}" oninput="updateMeta('${f.id}','notes',this.value)"></div>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--bd);background:var(--white)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;font-weight:600;margin-bottom:6px">Mitigation Steps</div>
+        <ul class="ap-steps-mini">${f.steps.map((s,i)=>`<li data-n="${i+1}">${s}</li>`).join('')}</ul>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function updateMeta(id,field,val){
+  if(actionPlan.has(id)){const m=actionPlan.get(id);m[field]=val;}
+}
+
+function clearAll(){
+  if(!confirm(`Remove all ${actionPlan.size} items from the Action Plan?`))return;
+  [...actionPlan.keys()].forEach(id=>refreshAPButtons(id));
+  actionPlan.clear();
+  renderActionPlan();updateAPNav();
+}
+
+// ── PDF EXPORT ──
+async function exportPDF(){
+  if(actionPlan.size===0){alert('Add items to the Action Plan first.');return;}
+  const btn=document.getElementById('exportBtn');
+  btn.textContent='⏳ Generating PDF…';btn.disabled=true;
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const W=doc.internal.pageSize.getWidth();
+    const H=doc.internal.pageSize.getHeight();
+    const margin=18;
+    let y=margin;
+
+    // ─ COVER HEADER ─
+    doc.setFillColor(15,23,42);doc.rect(0,0,W,42,'F');
+    doc.setFillColor(37,99,235);doc.rect(0,0,4,42,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold');doc.setFontSize(18);
+    doc.text('Threat Assessment — Action Plan',margin,18);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.setTextColor(148,163,184);
+    doc.text('Enterprise AI Operations Platform (AIOP)  ·  Generated by ThreatVision AI',margin,26);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})}  ·  Framework: MITRE ATT&CK v14  ·  Items: ${actionPlan.size}`,margin,33);
+    y=54;
+
+    // ─ SUMMARY BOX ─
+    const items=[...actionPlan.keys()].map(id=>FD.find(f=>f.id===id)).filter(Boolean);
+    items.sort((a,b)=>{const po={'P0':0,'P1':1,'P2':2};return(po[a.pri]-po[b.pri])||((b.L*b.I)-(a.L*a.I));});
+    const p0=items.filter(f=>f.pri==='P0').length;
+    const p1=items.filter(f=>f.pri==='P1').length;
+    const p2=items.filter(f=>f.pri==='P2').length;
+    const crit=items.filter(f=>f.sev==='CRITICAL').length;
+    const high=items.filter(f=>f.sev==='HIGH').length;
+
+    doc.setFillColor(239,246,255);doc.roundedRect(margin,y,W-margin*2,22,2,2,'F');
+    doc.setDrawColor(191,219,254);doc.roundedRect(margin,y,W-margin*2,22,2,2,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(37,99,235);
+    doc.text('EXECUTIVE SUMMARY',margin+4,y+7);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(71,85,105);
+    const sumCols=[
+      `Total Items: ${actionPlan.size}`,`P0 Critical: ${p0}`,`P1 High: ${p1}`,`P2 Medium: ${p2}`,
+      `Critical Severity: ${crit}`,`High Severity: ${high}`
+    ];
+    const colW=(W-margin*2)/sumCols.length;
+    sumCols.forEach((t,i)=>{doc.text(t,margin+4+i*colW,y+14);});
+    y+=30;
+
+    // ─ MAIN FINDINGS TABLE ─
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(15,23,42);
+    doc.text('Action Plan Items',margin,y);y+=6;
+
+    const sevColor={'CRITICAL':[220,38,38],'HIGH':[234,88,12],'MEDIUM':[217,119,6]};
+    const priColor={'P0':[220,38,38],'P1':[234,88,12],'P2':[217,119,6]};
+
+    doc.autoTable({
+      startY:y,
+      margin:{left:margin,right:margin},
+      head:[['ID','Finding','Tactic','Sev.','Score','Owner','Timeline','Assignee','Due Date','Status']],
+      body:items.map(f=>{
+        const meta=actionPlan.get(f.id)||{};
+        return[
+          f.id,f.title,f.tactic,f.sev,`${f.L}×${f.I}=${f.L*f.I}`,
+          f.owner,f.tl,
+          meta.assignee||f.owner,
+          meta.dueDate?new Date(meta.dueDate).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—',
+          meta.status||'Open'
+        ];
+      }),
+      headStyles:{fillColor:[15,23,42],textColor:255,fontStyle:'bold',fontSize:7.5},
+      bodyStyles:{fontSize:7.5,cellPadding:2.5},
+      columnStyles:{
+        0:{cellWidth:14,fontStyle:'bold'},1:{cellWidth:46},2:{cellWidth:22},
+        3:{cellWidth:16},4:{cellWidth:16},5:{cellWidth:20},6:{cellWidth:16},
+        7:{cellWidth:20},8:{cellWidth:18},9:{cellWidth:16}
+      },
+      didParseCell:(data)=>{
+        if(data.section==='body'){
+          const f=items[data.row.index];
+          if(!f)return;
+          if(data.column.index===3){const c=sevColor[f.sev]||[100,100,100];data.cell.styles.textColor=c;data.cell.styles.fontStyle='bold';}
+          if(data.column.index===4){const c=sevColor[f.sev]||[100,100,100];data.cell.styles.textColor=c;data.cell.styles.fontStyle='bold';}
+          if(data.column.index===9){
+            const st=actionPlan.get(f.id)?.status||'Open';
+            if(st==='Complete')data.cell.styles.textColor=[22,163,74];
+            else if(st==='In Progress')data.cell.styles.textColor=[37,99,235];
+            else if(st==='Deferred')data.cell.styles.textColor=[148,163,184];
+            else data.cell.styles.textColor=[220,38,38];
+          }
+          if(data.row.index%2===0)data.cell.styles.fillColor=[248,249,251];
+        }
+      },
+      alternateRowStyles:{fillColor:[255,255,255]},
+    });
+    y=doc.lastAutoTable.finalY+14;
+
+    // ─ DETAILED STEPS PER FINDING ─
+    items.forEach((f,idx)=>{
+      const meta=actionPlan.get(f.id)||{};
+      const sc2=f.sev==='CRITICAL'?[220,38,38]:f.sev==='HIGH'?[234,88,12]:[217,119,6];
+
+      // page break check
+      if(y>H-60){doc.addPage();y=margin;}
+
+      // Finding header bar
+      doc.setFillColor(248,249,251);doc.roundedRect(margin,y,W-margin*2,14,2,2,'F');
+      doc.setDrawColor(226,232,240);doc.roundedRect(margin,y,W-margin*2,14,2,2,'S');
+      // Severity stripe
+      doc.setFillColor(...sc2);doc.rect(margin,y,3,14,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(15,23,42);
+      doc.text(`${f.id}  ${f.title}`,margin+6,y+5.5);
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(148,163,184);
+      doc.text(`${f.tactic} · ${f.tech} · ${f.tl} · Assignee: ${meta.assignee||f.owner} · Status: ${meta.status||'Open'}`,margin+6,y+11);
+      y+=18;
+
+      // Document evidence quote
+      doc.setFillColor(239,246,255);doc.roundedRect(margin,y,W-margin*2,12,1,1,'F');
+      doc.setFont('helvetica','bolditalic');doc.setFontSize(7.5);doc.setTextColor(37,99,235);
+      doc.text('Evidence:',margin+3,y+5);
+      doc.setFont('helvetica','italic');doc.setTextColor(71,85,105);
+      const evLines=doc.splitTextToSize(f.ev.slice(0,180)+(f.ev.length>180?'…':''),W-margin*2-26);
+      doc.text(evLines[0]||'',margin+22,y+5);
+      if(evLines[1])doc.text(evLines[1],margin+3,y+9.5);
+      y+=16;
+
+      // Mitigation steps
+      doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(71,85,105);
+      doc.text('Mitigation Steps:',margin,y);y+=4;
+      f.steps.forEach((step,si)=>{
+        if(y>H-20){doc.addPage();y=margin;}
+        doc.setFillColor(...sc2);doc.circle(margin+2,y+1.5,1.5,'F');
+        doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(71,85,105);
+        const lines=doc.splitTextToSize(`${step}`,W-margin*2-8);
+        doc.text(lines,margin+6,y+2);
+        y+=lines.length*4+2;
+      });
+
+      // Notes if present
+      if(meta.notes){
+        if(y>H-20){doc.addPage();y=margin;}
+        doc.setFillColor(255,251,235);doc.roundedRect(margin,y,W-margin*2,9,1,1,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(180,83,9);
+        doc.text('Notes: ',margin+3,y+6);
+        doc.setFont('helvetica','normal');doc.setTextColor(71,85,105);
+        doc.text(doc.splitTextToSize(meta.notes,W-margin*2-22)[0],margin+18,y+6);
+        y+=13;
+      }
+      y+=8;
+    });
+
+    // ─ FOOTER on each page ─
+    const pageCount=doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++){
+      doc.setPage(i);
+      doc.setFillColor(248,249,251);doc.rect(0,H-10,W,10,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(148,163,184);
+      doc.text('AIOP Threat Assessment — Action Plan  ·  ThreatVision AI  ·  Confidential',margin,H-4);
+      doc.text(`Page ${i} of ${pageCount}`,W-margin,H-4,{align:'right'});
+    }
+
+    const fname=`AIOP_Action_Plan_${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(fname);
+  } catch(err){
+    console.error(err);alert('PDF generation failed. Please try again.');
+  } finally{
+    btn.innerHTML='<span>⬇</span> Export Action Plan as PDF';btn.disabled=false;
+  }
+}
+
+function printPlan(){
+  window.print();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  buildMitre();buildFindings();buildSpec();buildComp();buildRecs();
+  initTooltips();initScroll();initBars();
+  setTimeout(()=>document.querySelectorAll('#overview [data-w]').forEach(b=>{b.style.width=b.dataset.w+'%';}),400);
+});
+</script>
+</body>
+</html>

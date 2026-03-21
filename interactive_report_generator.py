@@ -21,6 +21,12 @@ import json
 import html
 from typing import Dict, Any
 import logging
+from report_enhancements import (
+    generate_attack_paths,
+    generate_attack_path_svg,
+    generate_mitre_heatmap,
+    ADDITIONAL_CSS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +69,8 @@ def _pri_color(pri: str) -> str:
 
 # ─── CSS ──────────────────────────────────────────────────────────────────────
 
-CSS = """
-:root {
+CSS = f"""
+:root {{
   --c:#dc2626;--cg:#fef2f2;--cb:#fecaca;--ct:#b91c1c;
   --h:#ea580c;--hg:#fff7ed;--hb:#fed7aa;--ht:#c2410c;
   --m:#d97706;--mg:#fffbeb;--mb:#fde68a;--mt:#b45309;
@@ -302,6 +308,8 @@ tr.tr-planned td{background:#f0fdf4 !important}
 .nt-val{color:var(--t2);line-height:1.4}
 .nt-quote{background:var(--s2);border-left:2px solid var(--a);padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t1);border-radius:0 4px 4px 0;margin-top:3px;line-height:1.55}
 /* AP TABS */
+{ADDITIONAL_CSS}
+/* CONTINUED AP TABS */
 .ap-tabs{display:flex;gap:2px;margin-bottom:16px;background:var(--s2);border-radius:8px;padding:3px;width:fit-content;border:1px solid var(--bd)}
 .ap-tab{padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--t2);background:transparent}
 .ap-tab.active{background:var(--white);color:var(--a);box-shadow:var(--shadow-sm)}
@@ -324,7 +332,8 @@ tr.tr-planned td{background:#f0fdf4 !important}
 @keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeUp .4s ease forwards;opacity:0}
 @media(max-width:1100px){.domains-grid,.spec-grid,.two-col{grid-template-columns:1fr 1fr}.rec-panel.active{grid-template-columns:1fr}.meta-strip{grid-template-columns:1fr 1fr}}
-@media(max-width:700px){.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{grid-template-columns:1fr}}
+@media(max-width:700px){{.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{{grid-template-columns:1fr}}}}
+{ADDITIONAL_CSS}
 """
 
 
@@ -1019,6 +1028,12 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
           <td><span class="pill {sc2}">{html.escape(tl)}</span></td>
         </tr>"""
 
+    # Generate attack paths and MITRE heatmap
+    attack_scenarios = generate_attack_paths(findings, kcs)
+    mitre_heatmap_html = ""
+    if "MITRE" in fw or "MITRE ATT&CK" in fw:
+        mitre_heatmap_html = generate_mitre_heatmap(findings)
+
     js_code = _build_js(data)
 
     return f"""<!DOCTYPE html>
@@ -1051,6 +1066,8 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   </div>
   <div class="nav-sec">Report Sections</div>
   <a class="nav-item active" href="#overview"><span class="nav-icon">📋</span>Overview<span class="nav-cnt c">{findings_count}</span></a>
+  {"<a class='nav-item' href='#mitre-coverage'><span class='nav-icon'>🎯</span>MITRE Coverage</a>" if "MITRE" in fw or "MITRE ATT&CK" in fw else ""}
+  <a class="nav-item" href="#attack-paths"><span class="nav-icon">🔗</span>Attack Scenarios</a>
   <a class="nav-item" href="#findings"><span class="nav-icon">🔍</span>All Findings<span class="nav-cnt c">{findings_count}</span></a>
   <a class="nav-item" href="#kill-chain"><span class="nav-icon" id="nav-sec03-icon">⛓</span><span id="nav-sec03-label">Threat Phases</span></a>
   <a class="nav-item" href="#matrix"><span class="nav-icon">📊</span>Risk Matrix</a>
@@ -1100,10 +1117,49 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   <div class="domains-grid">{domain_cards_html}</div>
 </section>
 
+{mitre_heatmap_html}
+
+<!-- ATTACK SCENARIOS -->
+<section class="sec" id="attack-paths">
+  <div class="sec-h">
+    <span class="sec-num">{"03" if not mitre_heatmap_html else "03"}</span>
+    <div>
+      <div class="sec-title">🔗 Attack Scenarios &amp; Exploit Chains</div>
+      <div class="sec-sub">Evidence-based attack paths showing how vulnerabilities can be chained · Click nodes for details</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hdr">
+      <div><div class="card-title">Critical Attack Scenarios</div><div class="card-sub">Synthesized from {len(attack_scenarios)} identified threat vectors</div></div>
+    </div>
+    <div class="card-body">
+      {"".join([f'''
+      <div class="ap-scenario">
+        <div class="ap-scenario-header">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:3px">{html.escape(scenario["title"])}</div>
+            <div style="font-size:11px;color:var(--t2)">{html.escape(scenario["description"])}</div>
+          </div>
+          <span class="pill {_sev_cls(scenario["severity"])}">{scenario["severity"]}</span>
+        </div>
+        <div class="ap-legend">
+          <div class="ap-legend-item"><span class="ap-legend-box ap-crit"></span>Critical Node</div>
+          <div class="ap-legend-item"><span class="ap-legend-box ap-high"></span>High Risk</div>
+          <div class="ap-legend-item"><span class="ap-legend-box ap-med"></span>Medium Risk</div>
+          <div class="ap-legend-item"><span class="ap-legend-box ap-pivot"></span>Pivot Point</div>
+        </div>
+        {generate_attack_path_svg(scenario["nodes"])}
+      </div>
+      ''' for scenario in attack_scenarios])}
+      {f'<div class="alert" style="margin-top:20px"><div class="alert-icon">ℹ️</div><div><div class="alert-title">No Attack Scenarios Generated</div><div class="alert-desc">Attack paths are synthesized when sufficient findings are present. Continue assessment to generate scenarios.</div></div></div>' if not attack_scenarios else ''}
+    </div>
+  </div>
+</section>
+
 <!-- FINDINGS -->
 <section class="sec" id="findings">
   <div class="sec-h">
-    <span class="sec-num">02</span>
+    <span class="sec-num">{"04" if mitre_heatmap_html else "03"}</span>
     <div>
       <div class="sec-title">All Findings — {findings_count} Total</div>
       <div class="sec-sub">Click any row to open full detail · Sort by column · Filter by severity · Add to Action Plan</div>
@@ -1135,7 +1191,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- KILL CHAIN / THREAT PHASES — title updated dynamically per framework -->
 <section class="sec" id="kill-chain">
   <div class="sec-h">
-    <span class="sec-num">03</span>
+    <span class="sec-num">{"05" if mitre_heatmap_html else "04"}</span>
     <div>
       <div class="sec-title"><span id="sec03-icon">⛓ </span><span id="sec03-title">Threat Phase Analysis</span></div>
       <div class="sec-sub" id="sec03-sub">Attack scenario phases — sourced from document evidence · Updated per selected framework</div>
@@ -1155,7 +1211,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- RISK MATRIX -->
 <section class="sec" id="matrix">
   <div class="sec-h">
-    <span class="sec-num">04</span>
+    <span class="sec-num">{"06" if mitre_heatmap_html else "05"}</span>
     <div>
       <div class="sec-title">Risk Priority Matrix</div>
       <div class="sec-sub">Likelihood × Impact · Critical = 16–25 · High = 9–15 · Medium = 6–11</div>
@@ -1188,7 +1244,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- RECOMMENDATIONS -->
 <section class="sec" id="recommendations">
   <div class="sec-h">
-    <span class="sec-num">05</span>
+    <span class="sec-num">{"07" if mitre_heatmap_html else "06"}</span>
     <div>
       <div class="sec-title">Prioritized Recommendations — {total_recs} Total</div>
       <div class="sec-sub">P0: {p0_recs} critical (0–30 days) · P1: {p1_recs} high (30–90 days) · P2: {p2_recs} medium (90–180 days)</div>
@@ -1207,7 +1263,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- COMPLIANCE -->
 <section class="sec" id="compliance">
   <div class="sec-h">
-    <span class="sec-num">06</span>
+    <span class="sec-num">{"08" if mitre_heatmap_html else "07"}</span>
     <div>
       <div class="sec-title">Key Findings Summary</div>
       <div class="sec-sub">Top findings with business impact and remediation timeline</div>
@@ -1224,7 +1280,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- ACTION PLAN -->
 <section class="sec" id="action-plan" style="background:var(--white)">
   <div class="sec-h">
-    <span class="sec-num">07</span>
+    <span class="sec-num">{"09" if mitre_heatmap_html else "08"}</span>
     <div>
       <div class="sec-title">Action Plan</div>
       <div class="sec-sub">Select findings using "+ Add to Plan" · Assign owners &amp; due dates · Track status · Export as PDF</div>
