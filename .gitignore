@@ -21,7 +21,7 @@ Thumbs.db
 
 # Build artifacts
 build/
-# dist/  # Commented out - need dist/ for Railway deployment
+#   # Commented out - need  for Railway deployment
 *.egg-info/
 
 # Node modules and frontend
@@ -29,7 +29,7 @@ node_modules/
 .pnpm-store/
 
 # Vite build output
-# dist/  # Commented out - committing built frontend for Railway
+#   # Commented out - committing built frontend for Railway
 
 # Editor directories
 .vscode/
