@@ -836,16 +836,18 @@ async def get_interactive_report(
     structured = meta.get("structured")
     if structured and structured.get("all_findings"):
         try:
+            logger.info(f"Regenerating interactive HTML for assessment {assessment_id} from structured data")
             html_content = generate_html(structured, assessment.project_name)
             assessment.report_html = html_content
             db.commit()
             return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.warning(f"Could not regenerate interactive HTML: {e}")
+            logger.error(f"Could not regenerate interactive HTML: {e}", exc_info=True)
 
     # Case 3: parse markdown on-the-fly (old assessments)
     if assessment.assessment_report:
         try:
+            logger.info(f"Parsing markdown to generate interactive HTML for assessment {assessment_id}")
             structured_data, _, html_content = _parse_and_generate(
                 raw_report=assessment.assessment_report,
                 project_name=assessment.project_name,
@@ -860,8 +862,10 @@ async def get_interactive_report(
                 db.commit()
                 return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.warning(f"On-the-fly generation failed: {e}")
+            logger.error(f"On-the-fly generation failed: {e}", exc_info=True)
 
+    # No data available
+    logger.warning(f"No data available to generate interactive report for assessment {assessment_id}")
     raise HTTPException(status_code=503, detail="Interactive report unavailable. Please regenerate the assessment.")
 
 

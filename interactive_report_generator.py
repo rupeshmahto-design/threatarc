@@ -980,18 +980,24 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
     Returns:
         Complete HTML string ready to serve or store
     """
-    if project_name:
-        data["project_name"] = project_name
+    try:
+        if project_name:
+            data["project_name"] = project_name
 
-    overall = data.get("overall_risk_rating", "HIGH")
-    overall_cls = _sev_cls(overall)
-    findings = data.get("all_findings", [])
-    recs = data.get("all_recommendations", [])
-    sev = data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0})
-    fw = data.get("frameworks_used", ["MITRE ATT&CK"])
-    ra = data.get("risk_areas_assessed", [])
-    adate = data.get("assessment_date", "")
-    pname = html.escape(data.get("project_name", project_name or "Project"))
+        overall = data.get("overall_risk_rating", "HIGH")
+        overall_cls = _sev_cls(overall)
+        findings = data.get("all_findings", [])
+        recs = data.get("all_recommendations", [])
+        sev = data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0})
+        fw = data.get("frameworks_used", ["MITRE ATT&CK"])
+        ra = data.get("risk_areas_assessed", [])
+        adate = data.get("assessment_date", "")
+        pname = html.escape(data.get("project_name", project_name or "Project"))
+        
+        logger.info(f"Generating interactive HTML for '{pname}' with {len(findings)} findings")
+    except Exception as e:
+        logger.error(f"Error extracting data from structured report: {e}")
+        raise
 
     domains = _compute_domains(data)
     domain_cards_html = "".join(_domain_card(d[0], d[1], d[2], d[3]) for d in domains)
@@ -1029,10 +1035,22 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
         </tr>"""
 
     # Generate attack paths and MITRE heatmap
-    attack_scenarios = generate_attack_paths(findings, kcs)
+    try:
+        attack_scenarios = generate_attack_paths(findings, kcs)
+        logger.info(f"Generated {len(attack_scenarios)} attack scenarios")
+    except Exception as e:
+        logger.error(f"Error generating attack paths: {e}")
+        attack_scenarios = []
+    
     mitre_heatmap_html = ""
-    if "MITRE" in fw or "MITRE ATT&CK" in fw:
-        mitre_heatmap_html = generate_mitre_heatmap(findings)
+    try:
+        if "MITRE" in str(fw) or "MITRE ATT&CK" in str(fw):
+            framework_str = ', '.join(fw) if isinstance(fw, list) else str(fw)
+            mitre_heatmap_html = generate_mitre_heatmap(findings, framework_str)
+            logger.info(f"Generated MITRE heatmap: {len(mitre_heatmap_html)} chars")
+    except Exception as e:
+        logger.error(f"Error generating MITRE heatmap: {e}")
+        mitre_heatmap_html = ""
 
     js_code = _build_js(data)
 
