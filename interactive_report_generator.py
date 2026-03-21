@@ -308,8 +308,6 @@ tr.tr-planned td{background:#f0fdf4 !important}
 .nt-val{color:var(--t2);line-height:1.4}
 .nt-quote{background:var(--s2);border-left:2px solid var(--a);padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t1);border-radius:0 4px 4px 0;margin-top:3px;line-height:1.55}
 /* AP TABS */
-{ADDITIONAL_CSS}
-/* CONTINUED AP TABS */
 .ap-tabs{display:flex;gap:2px;margin-bottom:16px;background:var(--s2);border-radius:8px;padding:3px;width:fit-content;border:1px solid var(--bd)}
 .ap-tab{padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--t2);background:transparent}
 .ap-tab.active{background:var(--white);color:var(--a);box-shadow:var(--shadow-sm)}
@@ -332,7 +330,7 @@ tr.tr-planned td{background:#f0fdf4 !important}
 @keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeUp .4s ease forwards;opacity:0}
 @media(max-width:1100px){.domains-grid,.spec-grid,.two-col{grid-template-columns:1fr 1fr}.rec-panel.active{grid-template-columns:1fr}.meta-strip{grid-template-columns:1fr 1fr}}
-@media(max-width:700px){{.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{{grid-template-columns:1fr}}}}
+@media(max-width:700px){.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{grid-template-columns:1fr}}
 {ADDITIONAL_CSS}
 """
 
