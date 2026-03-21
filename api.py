@@ -339,6 +339,127 @@ def _normalize_structured_data(data: dict) -> dict:
     return normalized
 
 
+def _create_markdown_html(markdown_text: str, project_name: str, frameworks: list) -> str:
+    """
+    Create a simple HTML page from raw markdown text when parsing fails.
+    This is a fallback for old assessments that can't be parsed.
+    """
+    import html
+    
+    # Escape HTML entities
+    escaped_markdown = html.escape(markdown_text)
+    
+    # Simple markdown-to-HTML conversion
+    lines = escaped_markdown.split('\n')
+    html_lines = []
+    in_code_block = False
+    
+    for line in lines:
+        if line.strip().startswith('```'):
+            in_code_block = not in_code_block
+            if in_code_block:
+                html_lines.append('<pre style="background:#f3f4f6;padding:12px;border-radius:6px;overflow-x:auto;"><code>')
+            else:
+                html_lines.append('</code></pre>')
+            continue
+        
+        if in_code_block:
+            html_lines.append(line)
+            continue
+            
+        if line.startswith('# '):
+            html_lines.append(f'<h1 style="color:#1f2937;margin-top:24px;">{line[2:]}</h1>')
+        elif line.startswith('## '):
+            html_lines.append(f'<h2 style="color:#374151;margin-top:20px;">{line[3:]}</h2>')
+        elif line.startswith('### '):
+            html_lines.append(f'<h3 style="color:#4b5563;margin-top:16px;">{line[4:]}</h3>')
+        elif line.startswith('- ') or line.startswith('* '):
+            html_lines.append(f'<li style="margin:4px 0;">{line[2:]}</li>')
+        elif line.startswith('**') and line.endswith('**'):
+            html_lines.append(f'<p style="font-weight:600;margin:8px 0;">{line[2:-2]}</p>')
+        elif line.strip():
+            html_lines.append(f'<p style="margin:8px 0;line-height:1.6;">{line}</p>')
+        else:
+            html_lines.append('<br>')
+    
+    html_content = '\n'.join(html_lines)
+    framework_str = ', '.join(frameworks) if frameworks else 'Multiple Frameworks'
+    
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{project_name} — Threat Assessment Report</title>
+<style>
+body {{
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f9fafb;
+    color: #1f2937;
+    margin: 0;
+    padding: 20px;
+}}
+.container {{
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}}
+.header {{
+    border-bottom: 3px solid #3b82f6;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}}
+.header h1 {{
+    margin: 0 0 8px 0;
+    color: #1f2937;
+    font-size: 32px;
+}}
+.meta {{
+    color: #6b7280;
+    font-size: 14px;
+}}
+.badge {{
+    display: inline-block;
+    background: #eff6ff;
+    color: #1e40af;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-right: 8px;
+}}
+.content {{
+    line-height: 1.8;
+}}
+code {{
+    font-family: 'Courier New', monospace;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🛡️ {project_name}</h1>
+<div class="meta">
+<span class="badge">{framework_str}</span>
+<span>Threat Assessment Report</span>
+</div>
+</div>
+<div class="content">
+{html_content}
+</div>
+</div>
+</body>
+</html>"""
+
+
 def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
     """Convert structured JSON data to markdown format for PDF generation"""
     from datetime import datetime
@@ -458,8 +579,10 @@ def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, ri
         interactive_html = generate_html(structured_data, project_name)
         return structured_data, markdown_body, interactive_html
     except Exception as parse_err:
-        logger.warning(f"⚠️ Report parsing/generation failed: {parse_err} — using raw report")
-        return {}, raw_report, None
+        logger.warning(f"⚠️ Report parsing/generation failed: {parse_err} — creating fallback HTML from markdown")
+        # Create a simple HTML report from the raw markdown
+        fallback_html = _create_markdown_html(raw_report, project_name, frameworks)
+        return {}, raw_report, fallback_html
 
 # ─────────────────────────────────────────────────────────────────────────────
 
