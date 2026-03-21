@@ -1139,20 +1139,27 @@ async def get_interactive_report(
             elif isinstance(report_data, dict):
                 # Fallback: Try one more time with dict data
                 logger.info(f"Case 3B: Attempting to generate from dict data for assessment {assessment_id}")
-                normalized = _normalize_structured_data(report_data)
-                if not normalized.get("project_name"):
-                    normalized["project_name"] = assessment.project_name
-                if not normalized.get("frameworks_used"):
-                    normalized["frameworks_used"] = [assessment.framework]
+                try:
+                    normalized = _normalize_structured_data(report_data)
+                    if not normalized.get("project_name"):
+                        normalized["project_name"] = assessment.project_name
+                    if not normalized.get("frameworks_used"):
+                        normalized["frameworks_used"] = [assessment.framework]
                     
-                html_content = generate_html(normalized, assessment.project_name)
-                assessment.report_html = html_content
-                meta["structured"] = normalized
-                meta["has_interactive_report"] = True
-                assessment.report_meta = meta
-                db.commit()
-                logger.info(f"✓ Successfully generated from dict in Case 3B")
-                return HTMLResponse(content=html_content)
+                    logger.info(f"Case 3B: Normalized {len(normalized.get('all_findings', []))} findings")
+                    html_content = generate_html(normalized, assessment.project_name)
+                    logger.info(f"Case 3B: Generated HTML ({len(html_content)} chars)")
+                    
+                    assessment.report_html = html_content
+                    meta["structured"] = normalized
+                    meta["has_interactive_report"] = True
+                    assessment.report_meta = meta
+                    db.commit()
+                    logger.info(f"✓ Successfully generated from dict in Case 3B")
+                    return HTMLResponse(content=html_content)
+                except Exception as case3b_error:
+                    logger.error(f"Case 3B failed: {case3b_error}", exc_info=True)
+                    # Continue to fallback page
         except Exception as e:
             logger.error(f"Case 3 generation failed: {e}", exc_info=True)
 
