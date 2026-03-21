@@ -465,7 +465,7 @@ def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
     from datetime import datetime
     
     md_lines = []
-    md_lines.append(f"# 🛡️ Threat Assessment Report")
+    md_lines.append(f"# Threat Assessment Report")
     md_lines.append(f"")
     md_lines.append(f"**Project:** {project_name}")
     md_lines.append(f"**Framework:** {', '.join(data.get('frameworks_used', ['MITRE ATT&CK']))}")
@@ -486,7 +486,7 @@ def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
     # Findings section
     findings = data.get('all_findings', [])
     if findings:
-        md_lines.append(f"## 🔍 All Findings ({len(findings)} total)")
+        md_lines.append(f"## All Findings ({len(findings)} total)")
         md_lines.append(f"")
         md_lines.append("| ID | Title | Tactic | Severity | Risk Score |")
         md_lines.append("|---|---|---|---|---|")
@@ -494,13 +494,13 @@ def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
         for f in findings:
             fid = f.get('id', '')
             title = f.get('title', '')[:60]
-            tactic = f.get('tactic', '')
+            tactic = f.get('tactic', '')[:30]
             severity = f.get('severity', 'MEDIUM')
             risk_score = f.get('risk_score', 9)
             md_lines.append(f"| {fid} | {title} | {tactic} | {severity} | {risk_score} |")
         
         md_lines.append(f"")
-        md_lines.append(f"## 📋 Detailed Findings")
+        md_lines.append(f"## Detailed Findings")
         md_lines.append(f"")
         
         for idx, f in enumerate(findings, 1):
@@ -542,7 +542,7 @@ def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
     # Recommendations section
     recs = data.get('all_recommendations', [])
     if recs:
-        md_lines.append(f"## ✅ Recommendations ({len(recs)} total)")
+        md_lines.append(f"## Recommendations ({len(recs)} total)")
         md_lines.append(f"")
         
         for priority in ['P0', 'P1', 'P2']:
