@@ -331,8 +331,10 @@ tr.tr-planned td{background:#f0fdf4 !important}
 .fade-in{animation:fadeUp .4s ease forwards;opacity:0}
 @media(max-width:1100px){.domains-grid,.spec-grid,.two-col{grid-template-columns:1fr 1fr}.rec-panel.active{grid-template-columns:1fr}.meta-strip{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{grid-template-columns:1fr}}
-{ADDITIONAL_CSS}
 """
+
+# Append additional CSS from report_enhancements module
+CSS = CSS + ADDITIONAL_CSS
 
 
 # ─── JAVASCRIPT ───────────────────────────────────────────────────────────────
