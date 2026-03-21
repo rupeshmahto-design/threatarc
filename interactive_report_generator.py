@@ -69,8 +69,8 @@ def _pri_color(pri: str) -> str:
 
 # ─── CSS ──────────────────────────────────────────────────────────────────────
 
-CSS = f"""
-:root {{
+CSS = """
+:root {
   --c:#dc2626;--cg:#fef2f2;--cb:#fecaca;--ct:#b91c1c;
   --h:#ea580c;--hg:#fff7ed;--hb:#fed7aa;--ht:#c2410c;
   --m:#d97706;--mg:#fffbeb;--mb:#fde68a;--mt:#b45309;
