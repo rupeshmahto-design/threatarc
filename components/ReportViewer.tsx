@@ -183,7 +183,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   }, [assessmentId, actionPlanItems]);
 
   const openFullWindow = () => {
-    window.open(`${apiBase}/reports/${assessmentId}/interactive`, "_blank");
+    window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${encodeURIComponent(token)}`, "_blank");
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -281,7 +281,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         <div style={styles.iframeWrapper}>
           <iframe
             ref={iframeRef}
-            src={`${apiBase}/reports/${assessmentId}/interactive`}
+            src={`${apiBase}/reports/${assessmentId}/interactive?token=${encodeURIComponent(token)}`}
             style={styles.iframe}
             title="Interactive Threat Assessment Report"
             sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"

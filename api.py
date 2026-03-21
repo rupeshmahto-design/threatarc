@@ -3,7 +3,7 @@ REST API for Threat Modeling Tool
 FastAPI endpoints with API key authentication
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Header, Request, Response
+from fastapi import FastAPI, Depends, HTTPException, status, Header, Request, Response, Query
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, PlainTextResponse, FileResponse
@@ -400,6 +400,50 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: S
         raise credentials_exception
     return user
 
+async def get_current_user_optional_query(
+    request: Request,
+    token_query: Optional[str] = Query(None, alias="token"),
+    db: Session = Depends(get_db)
+):
+    """
+    Authentication dependency that supports both header and query parameter tokens.
+    Useful for iframe embedding where Authorization headers cannot be passed.
+    """
+    import jwt
+    from jwt import PyJWTError
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    # Try to get token from Authorization header first
+    auth_header = request.headers.get("Authorization")
+    header_token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        header_token = auth_header.replace("Bearer ", "")
+    
+    # Use query parameter if header is not present (for iframe)
+    auth_token = header_token or token_query
+    
+    if not auth_token:
+        raise credentials_exception
+    
+    try:
+        SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+        payload = jwt.decode(auth_token, SECRET_KEY, algorithms=["HS256"])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except PyJWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
 @app.get("/users/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user_from_token)):
     return current_user
@@ -761,13 +805,17 @@ async def get_report_details(
 @app.get("/reports/{assessment_id}/interactive")
 async def get_interactive_report(
     assessment_id: int,
-    user: User = Depends(get_current_user_from_token),
+    user: User = Depends(get_current_user_optional_query),
     db: Session = Depends(get_db)
 ):
     """
     Serve the interactive HTML report.
     - New assessments: serve stored report_html instantly
     - Old assessments: regenerate from markdown on-the-fly, then cache it
+    
+    Supports authentication via:
+    - Authorization: Bearer <token> header (standard)
+    - ?token=<token> query parameter (for iframe embedding)
     """
     from fastapi.responses import HTMLResponse
 
