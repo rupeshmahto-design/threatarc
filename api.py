@@ -266,6 +266,110 @@ async def log_api_usage(request: Request, api_key: APIKey, status_code: int, res
 
 # ── NEW: parse + generate helper ─────────────────────────────────────────────
 
+def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
+    """Convert structured JSON data to markdown format for PDF generation"""
+    from datetime import datetime
+    
+    md_lines = []
+    md_lines.append(f"# 🛡️ Threat Assessment Report")
+    md_lines.append(f"")
+    md_lines.append(f"**Project:** {project_name}")
+    md_lines.append(f"**Framework:** {', '.join(data.get('frameworks_used', ['MITRE ATT&CK']))}")
+    md_lines.append(f"**Generated:** {data.get('assessment_date', datetime.now().strftime('%B %d, %Y'))}")
+    md_lines.append(f"")
+    md_lines.append(f"## Executive Summary")
+    md_lines.append(f"")
+    md_lines.append(f"**Overall Risk Rating:** {data.get('overall_risk_rating', 'HIGH')}")
+    md_lines.append(f"**Total Findings:** {data.get('total_findings', 0)}")
+    md_lines.append(f"")
+    sev = data.get('findings_by_severity', {})
+    md_lines.append(f"- CRITICAL: {sev.get('CRITICAL', 0)}")
+    md_lines.append(f"- HIGH: {sev.get('HIGH', 0)}")
+    md_lines.append(f"- MEDIUM: {sev.get('MEDIUM', 0)}")
+    md_lines.append(f"- LOW: {sev.get('LOW', 0)}")
+    md_lines.append(f"")
+    
+    # Findings section
+    findings = data.get('all_findings', [])
+    if findings:
+        md_lines.append(f"## 🔍 All Findings ({len(findings)} total)")
+        md_lines.append(f"")
+        md_lines.append("| ID | Title | Tactic | Severity | Risk Score |")
+        md_lines.append("|---|---|---|---|---|")
+        
+        for f in findings:
+            fid = f.get('id', '')
+            title = f.get('title', '')[:60]
+            tactic = f.get('tactic', '')
+            severity = f.get('severity', 'MEDIUM')
+            risk_score = f.get('risk_score', 9)
+            md_lines.append(f"| {fid} | {title} | {tactic} | {severity} | {risk_score} |")
+        
+        md_lines.append(f"")
+        md_lines.append(f"## 📋 Detailed Findings")
+        md_lines.append(f"")
+        
+        for idx, f in enumerate(findings, 1):
+            md_lines.append(f"### {f.get('id', f'F{idx:03d}')} — {f.get('title', 'Unnamed Finding')}")
+            md_lines.append(f"")
+            md_lines.append(f"**Severity:** {f.get('severity', 'MEDIUM')} | **Risk Score:** {f.get('risk_score', 9)}/25")
+            md_lines.append(f"")
+            md_lines.append(f"**Tactic:** {f.get('tactic', 'N/A')}")
+            md_lines.append(f"**Technique:** {f.get('technique_id', 'N/A')}")
+            md_lines.append(f"")
+            md_lines.append(f"**Description:**")
+            md_lines.append(f"")
+            md_lines.append(f"{f.get('description', 'No description provided.')}")
+            md_lines.append(f"")
+            
+            if f.get('verbatim_evidence'):
+                md_lines.append(f"**Evidence:**")
+                md_lines.append(f"")
+                md_lines.append(f"> {f.get('verbatim_evidence', '')}")
+                md_lines.append(f"")
+            
+            if f.get('business_impact'):
+                md_lines.append(f"**Business Impact:**")
+                md_lines.append(f"")
+                md_lines.append(f"{f.get('business_impact', '')}")
+                md_lines.append(f"")
+            
+            steps = f.get('mitigation_steps', [])
+            if steps:
+                md_lines.append(f"**Mitigation Steps:**")
+                md_lines.append(f"")
+                for i, step in enumerate(steps, 1):
+                    md_lines.append(f"{i}. {step}")
+                md_lines.append(f"")
+            
+            md_lines.append(f"---")
+            md_lines.append(f"")
+    
+    # Recommendations section
+    recs = data.get('all_recommendations', [])
+    if recs:
+        md_lines.append(f"## ✅ Recommendations ({len(recs)} total)")
+        md_lines.append(f"")
+        
+        for priority in ['P0', 'P1', 'P2']:
+            priority_recs = [r for r in recs if r.get('priority') == priority]
+            if priority_recs:
+                md_lines.append(f"### {priority} Priority Recommendations")
+                md_lines.append(f"")
+                
+                for rec in priority_recs:
+                    md_lines.append(f"**{rec.get('title', 'Recommendation')}**")
+                    md_lines.append(f"")
+                    steps = rec.get('implementation_steps', [])
+                    for i, step in enumerate(steps, 1):
+                        md_lines.append(f"{i}. {step}")
+                    md_lines.append(f"")
+                    md_lines.append(f"*Timeline: {rec.get('timeline', '30-90 days')} | Effort: {rec.get('effort', 'Medium')}*")
+                    md_lines.append(f"")
+    
+    return "\n".join(md_lines)
+
+
 def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, risk_focus_areas: list):
     """
     Parse Claude's raw response into structured data + interactive HTML.
@@ -759,6 +863,7 @@ async def download_pdf(
 ):
     from fastapi.responses import Response
     from pdf_generator import generate_pdf
+    import json as json_lib
 
     assessment = db.query(ThreatAssessment).filter(
         ThreatAssessment.id == assessment_id,
@@ -767,7 +872,29 @@ async def download_pdf(
     if not assessment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
 
-    pdf_bytes = generate_pdf(assessment.assessment_report, assessment.project_name, assessment.framework)
+    report_content = assessment.assessment_report
+    
+    # If report is JSON, convert to markdown first
+    if report_content:
+        try:
+            # Try parsing as JSON
+            if isinstance(report_content, str):
+                parsed = json_lib.loads(report_content)
+            elif isinstance(report_content, dict):
+                parsed = report_content
+            else:
+                parsed = None
+            
+            if parsed and isinstance(parsed, dict) and parsed.get("all_findings"):
+                # Convert JSON to markdown format
+                logger.info(f"Converting JSON to markdown for PDF generation (assessment {assessment_id})")
+                report_content = _convert_structured_to_markdown(parsed, assessment.project_name)
+        except (json_lib.JSONDecodeError, ValueError, TypeError):
+            # Not JSON, use as-is (markdown)
+            logger.info(f"Using markdown directly for PDF generation (assessment {assessment_id})")
+            pass
+    
+    pdf_bytes = generate_pdf(report_content, assessment.project_name, assessment.framework)
     date_str = assessment.created_at.strftime('%Y%m%d')
     filename = f"Threat_Assessment_{assessment.project_name.replace(' ', '_')}_{date_str}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
@@ -836,16 +963,51 @@ async def get_interactive_report(
     structured = meta.get("structured")
     if structured and structured.get("all_findings"):
         try:
-            logger.info(f"Regenerating interactive HTML for assessment {assessment_id} from structured data")
+            logger.info(f"Regenerating interactive HTML for assessment {assessment_id} from structured data in report_meta")
             html_content = generate_html(structured, assessment.project_name)
             assessment.report_html = html_content
             db.commit()
             return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.error(f"Could not regenerate interactive HTML: {e}", exc_info=True)
+            logger.error(f"Could not regenerate interactive HTML from report_meta: {e}", exc_info=True)
 
-    # Case 3: parse markdown on-the-fly (old assessments)
+    # Case 2.5: assessment_report contains JSON (not markdown)
     if assessment.assessment_report:
+        try:
+            # Try to parse as JSON first
+            report_data = assessment.assessment_report
+            if isinstance(report_data, str):
+                import json as json_lib
+                try:
+                    parsed_json = json_lib.loads(report_data)
+                    if isinstance(parsed_json, dict) and parsed_json.get("all_findings"):
+                        logger.info(f"Assessment {assessment_id} has JSON structured data in assessment_report")
+                        html_content = generate_html(parsed_json, assessment.project_name)
+                        assessment.report_html = html_content
+                        meta["structured"] = parsed_json
+                        meta["has_interactive_report"] = True
+                        assessment.report_meta = meta
+                        db.commit()
+                        return HTMLResponse(content=html_content)
+                except (json_lib.JSONDecodeError, ValueError):
+                    # Not JSON, continue to markdown parsing
+                    logger.info(f"Assessment {assessment_id} assessment_report is not JSON, trying markdown parse")
+                    pass
+            elif isinstance(report_data, dict) and report_data.get("all_findings"):
+                # Already a dict (SQLAlchemy JSON type)
+                logger.info(f"Assessment {assessment_id} has dict structured data in assessment_report")
+                html_content = generate_html(report_data, assessment.project_name)
+                assessment.report_html = html_content
+                meta["structured"] = report_data
+                meta["has_interactive_report"] = True
+                assessment.report_meta = meta
+                db.commit()
+                return HTMLResponse(content=html_content)
+        except Exception as e:
+            logger.error(f"Error processing JSON from assessment_report: {e}", exc_info=True)
+
+    # Case 3: parse markdown on-the-fly (old assessments with markdown reports)
+    if assessment.assessment_report and isinstance(assessment.assessment_report, str):
         try:
             logger.info(f"Parsing markdown to generate interactive HTML for assessment {assessment_id}")
             structured_data, _, html_content = _parse_and_generate(
@@ -862,7 +1024,7 @@ async def get_interactive_report(
                 db.commit()
                 return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.error(f"On-the-fly generation failed: {e}", exc_info=True)
+            logger.error(f"On-the-fly markdown generation failed: {e}", exc_info=True)
 
     # No data available
     logger.warning(f"No data available to generate interactive report for assessment {assessment_id}")
