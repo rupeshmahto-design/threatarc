@@ -1324,39 +1324,65 @@ async def regenerate_interactive_report(
     # Try to regenerate
     try:
         report_data = assessment.assessment_report
+        data_type = type(report_data).__name__
+        
+        logger.info(f"Regenerate: assessment_report type = {data_type}")
+        if isinstance(report_data, str):
+            logger.info(f"Regenerate: String data, length = {len(report_data)}, preview = {report_data[:200]}")
+        elif isinstance(report_data, dict):
+            logger.info(f"Regenerate: Dict data, keys = {list(report_data.keys())}, has all_findings = {bool(report_data.get('all_findings'))}")
         
         # Try JSON first
         if isinstance(report_data, dict):
-            normalized = _normalize_structured_data(report_data)
-            if not normalized.get("project_name"):
-                normalized["project_name"] = assessment.project_name
-            if not normalized.get("frameworks_used"):
-                normalized["frameworks_used"] = [assessment.framework]
-            html_content = generate_html(normalized, assessment.project_name)
-            assessment.report_html = html_content
-            meta["structured"] = normalized
-            meta["has_interactive_report"] = True
-            assessment.report_meta = meta
-            db.commit()
-            return {"success": True, "message": "Interactive report regenerated successfully"}
-        
-        # Try markdown
-        elif isinstance(report_data, str):
-            structured_data, _, html_content = _parse_and_generate(
-                raw_report=report_data,
-                project_name=assessment.project_name,
-                frameworks=meta.get("frameworks", [assessment.framework]),
-                risk_focus_areas=meta.get("risk_areas", []),
-            )
-            if html_content:
+            try:
+                logger.info("Regenerate: Attempting dict/JSON path")
+                normalized = _normalize_structured_data(report_data)
+                if not normalized.get("project_name"):
+                    normalized["project_name"] = assessment.project_name
+                if not normalized.get("frameworks_used"):
+                    normalized["frameworks_used"] = [assessment.framework]
+                
+                logger.info(f"Regenerate: Normalized data has {len(normalized.get('all_findings', []))} findings")
+                html_content = generate_html(normalized, assessment.project_name)
+                logger.info(f"Regenerate: Generated HTML, length = {len(html_content)}")
+                
                 assessment.report_html = html_content
-                meta["structured"] = structured_data
+                meta["structured"] = normalized
                 meta["has_interactive_report"] = True
                 assessment.report_meta = meta
                 db.commit()
+                logger.info("Regenerate: ✓ Successfully regenerated from dict")
                 return {"success": True, "message": "Interactive report regenerated successfully"}
+            except Exception as dict_error:
+                logger.error(f"Regenerate: Dict path failed: {dict_error}", exc_info=True)
+                raise
         
-        raise Exception("Could not regenerate report from available data")
+        # Try markdown
+        elif isinstance(report_data, str):
+            try:
+                logger.info("Regenerate: Attempting string/markdown path")
+                structured_data, _, html_content = _parse_and_generate(
+                    raw_report=report_data,
+                    project_name=assessment.project_name,
+                    frameworks=meta.get("frameworks", [assessment.framework]),
+                    risk_focus_areas=meta.get("risk_areas", []),
+                )
+                if html_content:
+                    logger.info(f"Regenerate: Generated HTML from markdown, length = {len(html_content)}")
+                    assessment.report_html = html_content
+                    meta["structured"] = structured_data
+                    meta["has_interactive_report"] = True
+                    assessment.report_meta = meta
+                    db.commit()
+                    logger.info("Regenerate: ✓ Successfully regenerated from markdown")
+                    return {"success": True, "message": "Interactive report regenerated successfully"}
+                else:
+                    raise Exception("parse_and_generate returned no HTML")
+            except Exception as str_error:
+                logger.error(f"Regenerate: String path failed: {str_error}", exc_info=True)
+                raise
+        
+        raise Exception(f"Could not regenerate report: unsupported data type '{data_type}'")
         
     except Exception as e:
         logger.error(f"Regeneration failed: {e}", exc_info=True)
