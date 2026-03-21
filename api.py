@@ -567,7 +567,7 @@ def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
 def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, risk_focus_areas: list):
     """
     Parse Claude's raw response into structured data + interactive HTML.
-    Never raises — returns safe fallbacks on any error.
+    Now always returns HTML - either from structured data or fallback.
     """
     try:
         structured_data, markdown_body = parse_assessment_response(
@@ -576,11 +576,13 @@ def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, ri
             frameworks=frameworks,
             risk_areas=risk_focus_areas,
         )
+        logger.info(f"✓ Parsed assessment: {len(structured_data.get('all_findings', []))} findings")
         interactive_html = generate_html(structured_data, project_name)
+        logger.info(f"✓ Generated interactive HTML: {len(interactive_html)} chars")
         return structured_data, markdown_body, interactive_html
     except Exception as parse_err:
-        logger.warning(f"⚠️ Report parsing/generation failed: {parse_err} — creating fallback HTML from markdown")
-        # Create a simple HTML report from the raw markdown
+        logger.error(f"⚠️ Report parsing/generation failed: {parse_err}", exc_info=True)
+        # Still create fallback HTML if everything fails
         fallback_html = _create_markdown_html(raw_report, project_name, frameworks)
         return {}, raw_report, fallback_html
 

@@ -92,6 +92,7 @@ def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
         findings.append({
             "id": fid,
             "title": title,
+            "description": title,  # Use title as description fallback
             "severity": sev,
             "likelihood": 3,
             "impact": 3,
@@ -101,10 +102,14 @@ def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
             "timeline": "30–90 days",
             "tactic": "",
             "technique_id": "",
+            "tactic_id": "",
             "doc_source": "",
             "verbatim_evidence": "",
             "business_impact": "",
+            "affected_systems": [],
             "mitigation_steps": [],
+            "validation_method": "",
+            "references": [],
         })
     return findings
 
@@ -189,6 +194,7 @@ def parse_assessment_response(
         for f in json_data["all_findings"]:
             f.setdefault("id", "F???")
             f.setdefault("title", "Untitled Finding")
+            f.setdefault("description", f.get("title", "No description available"))  # Add description fallback
             f.setdefault("tactic", "")
             f.setdefault("technique_id", "")
             f.setdefault("tactic_id", "")
@@ -202,7 +208,10 @@ def parse_assessment_response(
             f.setdefault("doc_source", "")
             f.setdefault("verbatim_evidence", "")
             f.setdefault("business_impact", "")
+            f.setdefault("affected_systems", [])
             f.setdefault("mitigation_steps", [])
+            f.setdefault("validation_method", "")
+            f.setdefault("references", [])
 
         # Normalize each recommendation
         for r in json_data["all_recommendations"]:
