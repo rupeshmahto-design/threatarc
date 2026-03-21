@@ -353,17 +353,25 @@ const META = {{
   assessment_date: "{assessment_date}"
 }};
 
+// ── UTILITY: HTML ESCAPE ──
+function esc(s){{const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}}
+
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {{
-  buildFindings();
-  buildRecs();
-  buildKillChain();
-  renderDomainBars();
-  initScroll();
-  initBars();
-  initTooltips();
-  renderActionPlan();
-  setTimeout(()=>document.querySelectorAll('#overview [data-w]').forEach(b=>{{b.style.width=b.dataset.w+'%';}}), 400);
+  try{{
+    buildFindings();
+    buildRecs();
+    buildKillChain();
+    renderDomainBars();
+    initScroll();
+    initBars();
+    initTooltips();
+    renderActionPlan();
+    setTimeout(()=>document.querySelectorAll('#overview [data-w]').forEach(b=>{{b.style.width=b.dataset.w+'%';}}), 400);
+  }}catch(err){{
+    console.error('Interactive report initialization error:', err);
+    alert('Report initialization failed. Please refresh the page.');
+  }}
 }});
 
 // ── SEVERITY HELPERS ──
@@ -373,28 +381,33 @@ const PBC={{P0:'p0',P1:'p1',P2:'p2'}};
 
 // ── BUILD FINDINGS TABLE ──
 function buildFindings(){{
-  const tb=document.getElementById('ftbody');
-  if(!tb)return;
-  FD.forEach(f=>{{
-    const sc=f.L??f.likelihood??3,si=f.I??f.impact??3,score=f.risk_score||(sc*si);
-    const sc2=SC[f.severity]||'m';
-    const tl=f.timeline||'';
-    const tl2=tl.includes('0–30')||tl.includes('0-30')?'c':tl.includes('30–90')||tl.includes('30-90')?'h':'m';
-    const tr=document.createElement('tr');tr.className='fr';tr.id=`row-${{f.id}}`;
-    tr.dataset.sev=f.severity;tr.dataset.s=`${{f.id}} ${{f.title}} ${{f.tactic||''}} ${{f.technique_id||''}} ${{f.owner||''}}`.toLowerCase();
-    tr.innerHTML=`
-      <td><span class="fid">${{f.id}}</span></td>
-      <td style="max-width:220px"><div class="ftitle">${{esc(f.title)}}</div><div class="fdoc">${{esc((f.doc_source||'').split(' — ')[0])}}</div></td>
-      <td><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2)">${{esc(f.tactic||'')}}</span></td>
-      <td><span class="tag">${{esc(f.technique_id||'—')}}</span></td>
-      <td><span class="pill ${{sc2}}">${{f.severity}}</span></td>
-      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--${{sc2==='c'?'c':sc2==='h'?'h':'m'}})">${{sc}}×${{si}}=${{score}}</span></td>
-      <td style="font-size:12px;color:var(--t2);font-weight:500">${{esc(f.owner||'')}}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--${{tl2}})">${{esc(tl)}}</td>
-      <td onclick="event.stopPropagation()"><button class="ap-btn" id="apbtn-${{f.id}}" onclick="toggleAP('${{f.id}}')">+ Add to Plan</button></td>`;
-    tr.onclick=()=>openModal(f);
-    tb.appendChild(tr);
-  }});
+  try{{
+    const tb=document.getElementById('ftbody');
+    if(!tb){{console.error('Findings table body not found');return;}}
+    if(!FD || !FD.length){{console.warn('No findings data');return;}}
+    FD.forEach(f=>{{
+      const sc=f.L??f.likelihood??3,si=f.I??f.impact??3,score=f.risk_score||(sc*si);
+      const sc2=SC[f.severity]||'m';
+      const tl=f.timeline||'';
+      const tl2=tl.includes('0–30')||tl.includes('0-30')?'c':tl.includes('30–90')||tl.includes('30-90')?'h':'m';
+      const tr=document.createElement('tr');tr.className='fr';tr.id=`row-${{f.id}}`;
+      tr.dataset.sev=f.severity;tr.dataset.s=`${{f.id}} ${{f.title}} ${{f.tactic||''}} ${{f.technique_id||''}} ${{f.owner||''}}`.toLowerCase();
+      tr.innerHTML=`
+        <td><span class="fid">${{f.id}}</span></td>
+        <td style="max-width:220px"><div class="ftitle">${{esc(f.title)}}</div><div class="fdoc">${{esc((f.doc_source||'').split(' — ')[0])}}</div></td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2)">${{esc(f.tactic||'')}}</span></td>
+        <td><span class="tag">${{esc(f.technique_id||'—')}}</span></td>
+        <td><span class="pill ${{sc2}}">${{f.severity}}</span></td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--${{sc2==='c'?'c':sc2==='h'?'h':'m'}})">${{sc}}×${{si}}=${{score}}</span></td>
+        <td style="font-size:12px;color:var(--t2);font-weight:500">${{esc(f.owner||'')}}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--${{tl2}})">${{esc(tl)}}</td>
+        <td onclick="event.stopPropagation()"><button class="ap-btn" id="apbtn-${{f.id}}" onclick="toggleAP('${{f.id}}')">+ Add to Plan</button></td>`;
+      tr.onclick=()=>openModal(f);
+      tb.appendChild(tr);
+    }});
+  }}catch(err){{
+    console.error('Error building findings table:', err);
+  }}
 }}
 
 // ── FILTER / SORT ──
@@ -610,27 +623,51 @@ function buildKillChain(){{
 // ── MODAL ──
 let _mfid=null;
 function openModal(f){{
-  _mfid=f.id;
-  const sc=(f.L??f.likelihood??3)*(f.I??f.impact??3);
-  const sc2=SC[f.severity]||'m';
-  document.getElementById('mId').textContent=f.id;
-  const p=document.getElementById('mPill');p.textContent=f.severity;p.className=`pill ${{sc2}}`;
-  document.getElementById('mTitle').textContent=f.title;
-  document.getElementById('mTech').textContent=`${{f.tactic||''}} · ${{f.technique_id||''}} · ${{f.doc_source||''}}`;
-  document.getElementById('mEv').textContent=f.verbatim_evidence||f.doc_source||'No direct evidence recorded';
-  document.getElementById('mL').textContent=`${{f.L??f.likelihood??3}} / 5`;
-  document.getElementById('mI').textContent=`${{f.I??f.impact??3}} / 5`;
-  document.getElementById('mSc').innerHTML=`<strong style="color:var(--${{sc2}})">${{sc}} / 25</strong>`;
-  document.getElementById('mPr').textContent=f.priority||'P1';
-  document.getElementById('mOw').textContent=f.owner||'';
-  document.getElementById('mTi').innerHTML=`<span style="color:var(--${{(f.timeline||'').includes('0')?'c':'h'}})">${{esc(f.timeline||'')}}</span>`;
-  document.getElementById('mBi').textContent=f.business_impact||'';
-  document.getElementById('mSt').innerHTML=(f.mitigation_steps||[]).map((s,i)=>`<li data-n="${{i+1}}">${{esc(s)}}</li>`).join('');
-  const inPlan=actionPlan.has(f.id);
-  const mb=document.getElementById('mApBtn');
-  mb.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';
-  mb.className=`ap-btn${{inPlan?' in-plan':''}}`;
-  document.getElementById('mOverlay').classList.add('open');
+  try{{
+    if(!f){{console.error('No finding provided to openModal');return;}}
+    _mfid=f.id;
+    const sc=(f.L??f.likelihood??3)*(f.I??f.impact??3);
+    const sc2=SC[f.severity]||'m';
+    const mId=document.getElementById('mId');
+    const mPill=document.getElementById('mPill');
+    const mTitle=document.getElementById('mTitle');
+    const mTech=document.getElementById('mTech');
+    const mEv=document.getElementById('mEv');
+    const mL=document.getElementById('mL');
+    const mI=document.getElementById('mI');
+    const mSc=document.getElementById('mSc');
+    const mPr=document.getElementById('mPr');
+    const mOw=document.getElementById('mOw');
+    const mTi=document.getElementById('mTi');
+    const mBi=document.getElementById('mBi');
+    const mSt=document.getElementById('mSt');
+    const mOverlay=document.getElementById('mOverlay');
+    
+    if(mId)mId.textContent=f.id;
+    if(mPill){{mPill.textContent=f.severity;mPill.className=`pill ${{sc2}}`;}}
+    if(mTitle)mTitle.textContent=f.title;
+    if(mTech)mTech.textContent=`${{f.tactic||''}} · ${{f.technique_id||''}} · ${{f.doc_source||''}}`;
+    if(mEv)mEv.textContent=f.verbatim_evidence||f.doc_source||'No direct evidence recorded';
+    if(mL)mL.textContent=`${{f.L??f.likelihood??3}} / 5`;
+    if(mI)mI.textContent=`${{f.I??f.impact??3}} / 5`;
+    if(mSc)mSc.innerHTML=`<strong style="color:var(--${{sc2}})">${{sc}} / 25</strong>`;
+    if(mPr)mPr.textContent=f.priority||'P1';
+    if(mOw)mOw.textContent=f.owner||'';
+    if(mTi)mTi.innerHTML=`<span style="color:var(--${{(f.timeline||'').includes('0')?'c':'h'}})">${{esc(f.timeline||'')}}</span>`;
+    if(mBi)mBi.textContent=f.business_impact||'';
+    if(mSt)mSt.innerHTML=(f.mitigation_steps||[]).map((s,i)=>`<li data-n="${{i+1}}">${{esc(s)}}</li>`).join('');
+    
+    const inPlan=actionPlan.has(f.id);
+    const mb=document.getElementById('mApBtn');
+    if(mb){{
+      mb.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';
+      mb.className=`ap-btn${{inPlan?' in-plan':''}}`;
+    }}
+    if(mOverlay)mOverlay.classList.add('open');
+  }}catch(err){{
+    console.error('Error opening modal:', err, f);
+    alert('Error opening finding details. Check console for details.');
+  }}
 }}
 function closeM(e){{if(e.target===document.getElementById('mOverlay'))document.getElementById('mOverlay').classList.remove('open');}}
 
@@ -666,28 +703,46 @@ function renderDomainBars(){{
 
 // ── NODE TOOLTIPS ──
 function initTooltips(){{
-  const tt=document.getElementById('nodeTip');if(!tt)return;
-  document.querySelectorAll('.ap-node').forEach(n=>{{
-    n.addEventListener('mouseenter',()=>{{
-      document.getElementById('ntT').textContent=n.dataset.title||'';
-      const sv=document.getElementById('ntS');sv.textContent=n.dataset.sev||'';
-      sv.style.color=n.dataset.sev==='CRITICAL'?'var(--c)':n.dataset.sev==='HIGH'?'var(--h)':'var(--t2)';
-      document.getElementById('ntD').textContent=n.dataset.doc||'';
-      document.getElementById('ntE').textContent=n.dataset.evidence||'';
-      document.getElementById('ntI').textContent=n.dataset.impact||'';
-      document.getElementById('ntR').textContent=n.dataset.ref||'';
-      tt.classList.add('vis');
+  try{{
+    const tt=document.getElementById('nodeTip');
+    if(!tt){{console.warn('Node tooltip element not found');return;}}
+    const nodes=document.querySelectorAll('.ap-node');
+    if(!nodes.length){{console.info('No attack path nodes found');return;}}
+    nodes.forEach(n=>{{
+      n.addEventListener('mouseenter',()=>{{
+        try{{
+          document.getElementById('ntT').textContent=n.dataset.title||'';
+          const sv=document.getElementById('ntS');
+          if(sv){{
+            sv.textContent=n.dataset.sev||'';
+            sv.style.color=n.dataset.sev==='CRITICAL'?'var(--c)':n.dataset.sev==='HIGH'?'var(--h)':'var(--t2)';
+          }}
+          document.getElementById('ntD').textContent=n.dataset.doc||'';
+          document.getElementById('ntE').textContent=n.dataset.evidence||'';
+          document.getElementById('ntI').textContent=n.dataset.impact||'';
+          document.getElementById('ntR').textContent=n.dataset.ref||'';
+          tt.classList.add('vis');
+        }}catch(err){{console.error('Tooltip mouseenter error:',err);}}
+      }});
+      n.addEventListener('mousemove',e=>{{
+        const x=e.clientX+14,y=e.clientY-14;
+        tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-28:x)+'px';
+        tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
+      }});
+      n.addEventListener('mouseleave',()=>tt.classList.remove('vis'));
+      n.addEventListener('click',()=>{{
+        try{{
+          if(n.dataset.ref){{
+            const f=FD.find(x=>x.technique_id===n.dataset.ref||x.id===n.dataset.ref);
+            if(f){{tt.classList.remove('vis');openModal(f);}}
+            else{{console.warn('Finding not found for ref:',n.dataset.ref);}}
+          }}
+        }}catch(err){{console.error('Node click error:',err);}}
+      }});
     }});
-    n.addEventListener('mousemove',e=>{{
-      const x=e.clientX+14,y=e.clientY-14;
-      tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-28:x)+'px';
-      tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
-    }});
-    n.addEventListener('mouseleave',()=>tt.classList.remove('vis'));
-    n.addEventListener('click',()=>{{
-      if(n.dataset.ref){{const f=FD.find(x=>x.technique_id===n.dataset.ref||x.id===n.dataset.ref);if(f){{tt.classList.remove('vis');openModal(f);}}}}
-    }});
-  }});
+  }}catch(err){{
+    console.error('Error initializing tooltips:', err);
+  }}
 }}
 
 // ── ACTION PLAN ──
@@ -855,7 +910,6 @@ async function exportPDF(){{
   finally{{btn.innerHTML='⬇ Export Action Plan as PDF';btn.disabled=false;}}
 }}
 function printPlan(){{window.print();}}
-function esc(s){{const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}}
 """
 
 
