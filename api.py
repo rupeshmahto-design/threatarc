@@ -1115,28 +1115,50 @@ async def get_interactive_report(
             logger.error(f"Error processing JSON from assessment_report: {e}", exc_info=True)
 
     # Case 3: parse markdown on-the-fly (old assessments with markdown reports)
-    if assessment.assessment_report and isinstance(assessment.assessment_report, str):
+    if assessment.assessment_report:
         try:
-            logger.info(f"Parsing markdown to generate interactive HTML for assessment {assessment_id}")
-            structured_data, _, html_content = _parse_and_generate(
-                raw_report=assessment.assessment_report,
-                project_name=assessment.project_name,
-                frameworks=meta.get("frameworks", [assessment.framework]),
-                risk_focus_areas=meta.get("risk_areas", []),
-            )
-            if html_content:
+            # Handle both string (markdown) and dict (JSON) formats
+            report_data = assessment.assessment_report
+            
+            if isinstance(report_data, str):
+                logger.info(f"Case 3: Parsing markdown for assessment {assessment_id}")
+                structured_data, _, html_content = _parse_and_generate(
+                    raw_report=report_data,
+                    project_name=assessment.project_name,
+                    frameworks=meta.get("frameworks", [assessment.framework]),
+                    risk_focus_areas=meta.get("risk_areas", []),
+                )
+                if html_content:
+                    assessment.report_html = html_content
+                    meta["structured"] = structured_data
+                    meta["has_interactive_report"] = True
+                    assessment.report_meta = meta
+                    db.commit()
+                    logger.info(f"✓ Successfully generated from markdown (Case 3)")
+                    return HTMLResponse(content=html_content)
+            elif isinstance(report_data, dict):
+                # Fallback: Try one more time with dict data
+                logger.info(f"Case 3B: Attempting to generate from dict data for assessment {assessment_id}")
+                normalized = _normalize_structured_data(report_data)
+                if not normalized.get("project_name"):
+                    normalized["project_name"] = assessment.project_name
+                if not normalized.get("frameworks_used"):
+                    normalized["frameworks_used"] = [assessment.framework]
+                    
+                html_content = generate_html(normalized, assessment.project_name)
                 assessment.report_html = html_content
-                meta["structured"] = structured_data
+                meta["structured"] = normalized
                 meta["has_interactive_report"] = True
                 assessment.report_meta = meta
                 db.commit()
+                logger.info(f"✓ Successfully generated from dict in Case 3B")
                 return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.error(f"On-the-fly markdown generation failed: {e}", exc_info=True)
+            logger.error(f"Case 3 generation failed: {e}", exc_info=True)
 
     # No data available
     logger.warning(f"No data available to generate interactive report for assessment {assessment_id}")
-    logger.warning(f"Final state - report_html: {bool(assessment.report_html)}, assessment_report: {bool(assessment.assessment_report)}, structured: {bool(meta.get('structured'))}")
+    logger.warning(f"Final state - report_html: {bool(assessment.report_html)}, assessment_report: {bool(assessment.assessment_report)}, type: {type(assessment.assessment_report).__name__ if assessment.assessment_report else 'None'}, structured: {bool(meta.get('structured'))}")
     
     # Generate a fallback "empty report" HTML instead of error
     fallback_html = f"""<!DOCTYPE html>
@@ -1222,6 +1244,75 @@ async def get_structured_data(
             assessment.report_html and assessment.report_html.strip().startswith("<!DOCTYPE html")
         ),
     }
+
+
+@app.post("/reports/{assessment_id}/regenerate")
+async def regenerate_interactive_report(
+    assessment_id: int,
+    user: User = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """Force regenerate the interactive report (clears cache and retries)."""
+    assessment = db.query(ThreatAssessment).filter(
+        ThreatAssessment.id == assessment_id,
+        ThreatAssessment.organization_id == user.organization_id
+    ).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    
+    if not assessment.assessment_report:
+        raise HTTPException(status_code=400, detail="No assessment data to regenerate from")
+    
+    logger.info(f"Force regenerating interactive report for assessment {assessment_id}")
+    
+    # Clear cached data
+    assessment.report_html = None
+    meta = assessment.report_meta or {}
+    if "structured" in meta:
+        del meta["structured"]
+    assessment.report_meta = meta
+    db.commit()
+    
+    # Try to regenerate
+    try:
+        report_data = assessment.assessment_report
+        
+        # Try JSON first
+        if isinstance(report_data, dict):
+            normalized = _normalize_structured_data(report_data)
+            if not normalized.get("project_name"):
+                normalized["project_name"] = assessment.project_name
+            if not normalized.get("frameworks_used"):
+                normalized["frameworks_used"] = [assessment.framework]
+            html_content = generate_html(normalized, assessment.project_name)
+            assessment.report_html = html_content
+            meta["structured"] = normalized
+            meta["has_interactive_report"] = True
+            assessment.report_meta = meta
+            db.commit()
+            return {"success": True, "message": "Interactive report regenerated successfully"}
+        
+        # Try markdown
+        elif isinstance(report_data, str):
+            structured_data, _, html_content = _parse_and_generate(
+                raw_report=report_data,
+                project_name=assessment.project_name,
+                frameworks=meta.get("frameworks", [assessment.framework]),
+                risk_focus_areas=meta.get("risk_areas", []),
+            )
+            if html_content:
+                assessment.report_html = html_content
+                meta["structured"] = structured_data
+                meta["has_interactive_report"] = True
+                assessment.report_meta = meta
+                db.commit()
+                return {"success": True, "message": "Interactive report regenerated successfully"}
+        
+        raise Exception("Could not regenerate report from available data")
+        
+    except Exception as e:
+        logger.error(f"Regeneration failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to regenerate report: {str(e)}")
 
 
 @app.post("/reports/{assessment_id}/action-plan")
