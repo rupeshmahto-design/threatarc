@@ -569,6 +569,8 @@ def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, ri
     Parse Claude's raw response into structured data + interactive HTML.
     Now always returns HTML - either from structured data or fallback.
     """
+    from report_parser import extract_markdown_body
+    
     try:
         structured_data, markdown_body = parse_assessment_response(
             raw_response=raw_report,
@@ -582,9 +584,10 @@ def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, ri
         return structured_data, markdown_body, interactive_html
     except Exception as parse_err:
         logger.error(f"⚠️ Report parsing/generation failed: {parse_err}", exc_info=True)
-        # Still create fallback HTML if everything fails
-        fallback_html = _create_markdown_html(raw_report, project_name, frameworks)
-        return {}, raw_report, fallback_html
+        # Use cleaned markdown (JSON block stripped) for fallback
+        cleaned_markdown = extract_markdown_body(raw_report)
+        fallback_html = _create_markdown_html(cleaned_markdown, project_name, frameworks)
+        return {}, cleaned_markdown, fallback_html
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1061,6 +1064,7 @@ async def download_pdf(
 ):
     from fastapi.responses import Response
     from pdf_generator import generate_pdf
+    from report_parser import extract_markdown_body
     import json as json_lib
 
     assessment = db.query(ThreatAssessment).filter(
@@ -1091,10 +1095,16 @@ async def download_pdf(
                 if not normalized.get("project_name"):
                     normalized["project_name"] = assessment.project_name
                 report_content = _convert_structured_to_markdown(normalized, assessment.project_name)
+            else:
+                # String but not JSON - clean it by removing JSON blocks
+                if isinstance(report_content, str):
+                    logger.info(f"Cleaning markdown for PDF generation (assessment {assessment_id})")
+                    report_content = extract_markdown_body(report_content)
         except (json_lib.JSONDecodeError, ValueError, TypeError) as e:
-            # Not JSON, use as-is (markdown)
-            logger.info(f"Using markdown directly for PDF generation (assessment {assessment_id}): {e}")
-            pass
+            # Not JSON, clean the markdown
+            logger.info(f"Cleaning markdown for PDF generation (assessment {assessment_id}): {e}")
+            if isinstance(report_content, str):
+                report_content = extract_markdown_body(report_content)
     
     pdf_bytes = generate_pdf(report_content, assessment.project_name, assessment.framework)
     date_str = assessment.created_at.strftime('%Y%m%d')

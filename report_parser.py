@@ -56,8 +56,12 @@ def extract_markdown_body(raw_response: str) -> str:
     """
     Strip the JSON block from the response, returning only the markdown report body.
     """
-    # Remove ```json ... ``` block
+    # Remove ```json ... ``` block (greedy match to get the whole block)
     cleaned = re.sub(r"```json\s*[\s\S]*?```\s*", "", raw_response, flags=re.MULTILINE)
+    
+    # Also remove any standalone { ... } JSON objects at the start
+    cleaned = re.sub(r"^\s*\{[\s\S]*?\n\}\s*", "", cleaned, flags=re.MULTILINE)
+    
     return cleaned.strip()
 
 
