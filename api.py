@@ -1176,8 +1176,15 @@ p {{color: #6b7280; line-height: 1.6; margin-bottom: 24px;}}
 .info {{background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: left;}}
 .info-title {{color: #1e40af; font-weight: 600; margin-bottom: 8px;}}
 .info-item {{color: #64748b; font-size: 14px; margin: 4px 0; font-family: 'Courier New', monospace;}}
-.btn {{display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px; transition: all 0.2s;}}
+.btn {{display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 8px 6px; transition: all 0.2s; cursor: pointer; border: none; font-size: 14px;}}
 .btn:hover {{background: #1d4ed8; transform: translateY(-1px);}}
+.btn-secondary {{background: #10b981;}}
+.btn-secondary:hover {{background: #059669;}}
+.btn:disabled {{background: #9ca3af; cursor: not-allowed; transform: none;}}
+#status {{margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 14px; display: none;}}
+.status-loading {{background: #fef3c7; color: #92400e; border: 1px solid #fde68a;}}
+.status-success {{background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;}}
+.status-error {{background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;}}
 </style>
 </head>
 <body>
@@ -1194,7 +1201,48 @@ p {{color: #6b7280; line-height: 1.6; margin-bottom: 24px;}}
 </div>
 <p style="font-size: 14px;">This usually means the assessment is incomplete or was created before interactive reports were available.</p>
 <p style="font-size: 14px;"><strong>Solution:</strong> Try regenerating this assessment or create a new one.</p>
+<div>
+<button id="regenerateBtn" class="btn btn-secondary" onclick="regenerateReport()">🔄 Try Regenerate</button>
 <a href="/dashboard" class="btn">Back to Dashboard</a>
+</div>
+<div id="status"></div>
+</div>
+<script>
+async function regenerateReport() {{
+  const btn = document.getElementById('regenerateBtn');
+  const status = document.getElementById('status');
+  
+  btn.disabled = true;
+  btn.textContent = '⏳ Regenerating...';
+  status.className = 'status-loading';
+  status.style.display = 'block';
+  status.textContent = 'Attempting to regenerate interactive report...';
+  
+  try {{
+    const response = await fetch('/reports/{assessment.id}/regenerate', {{
+      method: 'POST',
+      headers: {{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (new URLSearchParams(window.location.search)).get('token')
+      }}
+    }});
+    
+    if (response.ok) {{
+      status.className = 'status-success';
+      status.textContent = '✓ Report regenerated successfully! Reloading...';
+      setTimeout(() => window.location.reload(), 1500);
+    }} else {{
+      const error = await response.json();
+      throw new Error(error.detail || 'Regeneration failed');
+    }}
+  }} catch (err) {{
+    status.className = 'status-error';
+    status.textContent = '✗ ' + err.message;
+    btn.disabled = false;
+    btn.textContent = '🔄 Try Regenerate';
+  }}
+}}
+</script>
 </div>
 </body>
 </html>"""
