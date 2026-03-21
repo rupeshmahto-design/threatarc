@@ -266,6 +266,57 @@ async def log_api_usage(request: Request, api_key: APIKey, status_code: int, res
 
 # ── NEW: parse + generate helper ─────────────────────────────────────────────
 
+def _normalize_structured_data(data: dict) -> dict:
+    """Normalize structured JSON data to ensure all required fields exist"""
+    if not isinstance(data, dict):
+        return data
+    
+    # Ensure top-level fields
+    normalized = {
+        "overall_risk_rating": data.get("overall_risk_rating", "HIGH"),
+        "total_findings": data.get("total_findings", 0),
+        "findings_by_severity": data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}),
+        "frameworks_used": data.get("frameworks_used", ["MITRE ATT&CK"]),
+        "risk_areas_assessed": data.get("risk_areas_assessed", []),
+        "assessment_date": data.get("assessment_date", ""),
+        "project_name": data.get("project_name", ""),
+        "all_findings": [],
+        "all_recommendations": data.get("all_recommendations", []),
+        "kill_chains": data.get("kill_chains", [])
+    }
+    
+    # Normalize findings - ensure all required fields exist
+    for finding in data.get("all_findings", []):
+        normalized_finding = {
+            "id": finding.get("id", ""),
+            "title": finding.get("title", "Untitled Finding"),
+            "description": finding.get("description", finding.get("title", "No description")),  # Use title as fallback
+            "tactic": finding.get("tactic", ""),
+            "technique_id": finding.get("technique_id", ""),
+            "tactic_id": finding.get("tactic_id", ""),
+            "severity": finding.get("severity", "MEDIUM"),
+            "likelihood": finding.get("likelihood", 3),
+            "impact": finding.get("impact", 3),
+            "risk_score": finding.get("risk_score", 9),
+            "priority": finding.get("priority", "P1"),
+            "owner": finding.get("owner", "Security Team"),
+            "timeline": finding.get("timeline", "30-90 days"),
+            "doc_source": finding.get("doc_source", ""),
+            "verbatim_evidence": finding.get("verbatim_evidence", ""),
+            "business_impact": finding.get("business_impact", ""),
+            "affected_systems": finding.get("affected_systems", []),
+            "mitigation_steps": finding.get("mitigation_steps", []),
+            "validation_method": finding.get("validation_method", ""),
+            "references": finding.get("references", [])
+        }
+        normalized["all_findings"].append(normalized_finding)
+    
+    # Update counts
+    normalized["total_findings"] = len(normalized["all_findings"])
+    
+    return normalized
+
+
 def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
     """Convert structured JSON data to markdown format for PDF generation"""
     from datetime import datetime
@@ -885,13 +936,17 @@ async def download_pdf(
             else:
                 parsed = None
             
-            if parsed and isinstance(parsed, dict) and parsed.get("all_findings"):
+            if parsed and isinstance(parsed, dict) and (parsed.get("all_findings") or parsed.get("overall_risk_rating")):
                 # Convert JSON to markdown format
                 logger.info(f"Converting JSON to markdown for PDF generation (assessment {assessment_id})")
-                report_content = _convert_structured_to_markdown(parsed, assessment.project_name)
-        except (json_lib.JSONDecodeError, ValueError, TypeError):
+                # Normalize before converting
+                normalized = _normalize_structured_data(parsed)
+                if not normalized.get("project_name"):
+                    normalized["project_name"] = assessment.project_name
+                report_content = _convert_structured_to_markdown(normalized, assessment.project_name)
+        except (json_lib.JSONDecodeError, ValueError, TypeError) as e:
             # Not JSON, use as-is (markdown)
-            logger.info(f"Using markdown directly for PDF generation (assessment {assessment_id})")
+            logger.info(f"Using markdown directly for PDF generation (assessment {assessment_id}): {e}")
             pass
     
     pdf_bytes = generate_pdf(report_content, assessment.project_name, assessment.framework)
@@ -953,9 +1008,26 @@ async def get_interactive_report(
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
+    logger.info(f"=== Interactive Report Debug for Assessment {assessment_id} ===")
+    logger.info(f"Project: {assessment.project_name}")
+    logger.info(f"Status: {assessment.status}")
+    logger.info(f"Has report_html: {bool(assessment.report_html)}")
+    logger.info(f"Has assessment_report: {bool(assessment.assessment_report)}")
+    logger.info(f"assessment_report type: {type(assessment.assessment_report)}")
+    if assessment.assessment_report:
+        report_str = str(assessment.assessment_report)[:200]
+        logger.info(f"assessment_report preview: {report_str}")
+    logger.info(f"Has report_meta: {bool(assessment.report_meta)}")
+    if assessment.report_meta:
+        logger.info(f"report_meta keys: {list(assessment.report_meta.keys()) if isinstance(assessment.report_meta, dict) else 'not a dict'}")
+        if isinstance(assessment.report_meta, dict):
+            logger.info(f"report_meta.structured exists: {bool(assessment.report_meta.get('structured'))}")
+    logger.info(f"Counts - Critical: {assessment.critical_count}, High: {assessment.high_count}, Medium: {assessment.medium_count}")
+
     # Case 1: stored interactive HTML (new assessments)
     stored = assessment.report_html
     if stored and stored.strip().startswith("<!DOCTYPE html"):
+        logger.info("✓ Serving stored HTML (Case 1)")
         return HTMLResponse(content=stored)
 
     # Case 2: structured data in report_meta — regenerate HTML
@@ -976,33 +1048,43 @@ async def get_interactive_report(
         try:
             # Try to parse as JSON first
             report_data = assessment.assessment_report
+            parsed_json = None
+            
             if isinstance(report_data, str):
                 import json as json_lib
                 try:
                     parsed_json = json_lib.loads(report_data)
-                    if isinstance(parsed_json, dict) and parsed_json.get("all_findings"):
-                        logger.info(f"Assessment {assessment_id} has JSON structured data in assessment_report")
-                        html_content = generate_html(parsed_json, assessment.project_name)
-                        assessment.report_html = html_content
-                        meta["structured"] = parsed_json
-                        meta["has_interactive_report"] = True
-                        assessment.report_meta = meta
-                        db.commit()
-                        return HTMLResponse(content=html_content)
+                    logger.info(f"✓ Parsed assessment_report as JSON string")
                 except (json_lib.JSONDecodeError, ValueError):
                     # Not JSON, continue to markdown parsing
-                    logger.info(f"Assessment {assessment_id} assessment_report is not JSON, trying markdown parse")
+                    logger.info(f"Assessment {assessment_id} assessment_report is not valid JSON string")
                     pass
-            elif isinstance(report_data, dict) and report_data.get("all_findings"):
+            elif isinstance(report_data, dict):
                 # Already a dict (SQLAlchemy JSON type)
-                logger.info(f"Assessment {assessment_id} has dict structured data in assessment_report")
-                html_content = generate_html(report_data, assessment.project_name)
-                assessment.report_html = html_content
-                meta["structured"] = report_data
-                meta["has_interactive_report"] = True
-                assessment.report_meta = meta
-                db.commit()
-                return HTMLResponse(content=html_content)
+                parsed_json = report_data
+                logger.info(f"✓ assessment_report is already a dict")
+            
+            if parsed_json and isinstance(parsed_json, dict):
+                # Check if it has findings structure
+                if parsed_json.get("all_findings") or parsed_json.get("overall_risk_rating"):
+                    logger.info(f"✓ Found structured data with {len(parsed_json.get('all_findings', []))} findings")
+                    # Normalize data to ensure all required fields exist
+                    normalized_data = _normalize_structured_data(parsed_json)
+                    if not normalized_data.get("project_name"):
+                        normalized_data["project_name"] = assessment.project_name
+                    
+                    logger.info(f"✓ Generating HTML from normalized data")
+                    html_content = generate_html(normalized_data, assessment.project_name)
+                    
+                    # Cache it
+                    assessment.report_html = html_content
+                    meta["structured"] = normalized_data
+                    meta["has_interactive_report"] = True
+                    assessment.report_meta = meta
+                    db.commit()
+                    
+                    logger.info(f"✓ Successfully generated and cached interactive HTML (Case 2.5)")
+                    return HTMLResponse(content=html_content)
         except Exception as e:
             logger.error(f"Error processing JSON from assessment_report: {e}", exc_info=True)
 
@@ -1028,7 +1110,48 @@ async def get_interactive_report(
 
     # No data available
     logger.warning(f"No data available to generate interactive report for assessment {assessment_id}")
-    raise HTTPException(status_code=503, detail="Interactive report unavailable. Please regenerate the assessment.")
+    logger.warning(f"Final state - report_html: {bool(assessment.report_html)}, assessment_report: {bool(assessment.assessment_report)}, structured: {bool(meta.get('structured'))}")
+    
+    # Generate a fallback "empty report" HTML instead of error
+    fallback_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{assessment.project_name} — No Data Available</title>
+<style>
+body {{font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;}}
+.container {{background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 40px; max-width: 600px; text-align: center;}}
+.icon {{font-size: 64px; margin-bottom: 20px;}}
+h1 {{color: #1f2937; margin-bottom: 12px; font-size: 24px;}}
+p {{color: #6b7280; line-height: 1.6; margin-bottom: 24px;}}
+.info {{background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: left;}}
+.info-title {{color: #1e40af; font-weight: 600; margin-bottom: 8px;}}
+.info-item {{color: #64748b; font-size: 14px; margin: 4px 0; font-family: 'Courier New', monospace;}}
+.btn {{display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 12px; transition: all 0.2s;}}
+.btn:hover {{background: #1d4ed8; transform: translateY(-1px);}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="icon">📋</div>
+<h1>Interactive Report Not Available</h1>
+<p>The interactive report for <strong>{assessment.project_name}</strong> cannot be generated at this time.</p>
+<div class="info">
+<div class="info-title">Assessment Details:</div>
+<div class="info-item">ID: {assessment.id}</div>
+<div class="info-item">Status: {assessment.status}</div>
+<div class="info-item">Framework: {assessment.framework}</div>
+<div class="info-item">Created: {assessment.created_at.strftime('%B %d, %Y')}</div>
+</div>
+<p style="font-size: 14px;">This usually means the assessment is incomplete or was created before interactive reports were available.</p>
+<p style="font-size: 14px;"><strong>Solution:</strong> Try regenerating this assessment or create a new one.</p>
+<a href="/dashboard" class="btn">Back to Dashboard</a>
+</div>
+</body>
+</html>"""
+    
+    return HTMLResponse(content=fallback_html)
 
 
 @app.get("/reports/{assessment_id}/structured")
