@@ -21,14 +21,33 @@ import json
 import html
 from typing import Dict, Any
 import logging
-from report_enhancements import (
-    generate_attack_paths,
-    generate_attack_path_svg,
-    generate_mitre_heatmap,
-    ADDITIONAL_CSS
-)
 
 logger = logging.getLogger(__name__)
+
+# Try to import enhancements, but don't fail if they're not available
+try:
+    from report_enhancements import (
+        generate_attack_paths,
+        generate_attack_path_svg,
+        generate_mitre_heatmap,
+        ADDITIONAL_CSS
+    )
+    ENHANCEMENTS_AVAILABLE = True
+    logger.info("✓ Report enhancements loaded successfully")
+except Exception as e:
+    logger.warning(f"⚠️ Report enhancements not available: {e}")
+    ENHANCEMENTS_AVAILABLE = False
+    ADDITIONAL_CSS = ""
+    
+    # Provide fallback functions
+    def generate_attack_paths(findings, kill_chains):
+        return []
+    
+    def generate_attack_path_svg(nodes):
+        return ""
+    
+    def generate_mitre_heatmap(findings, framework):
+        return ""
 
 
 # ─── SEVERITY HELPERS ─────────────────────────────────────────────────────────

@@ -269,7 +269,19 @@ async def log_api_usage(request: Request, api_key: APIKey, status_code: int, res
 def _normalize_structured_data(data: dict) -> dict:
     """Normalize structured JSON data to ensure all required fields exist"""
     if not isinstance(data, dict):
-        return data
+        logger.warning(f"normalize: data is not a dict, type={type(data)}")
+        return {
+            "overall_risk_rating": "HIGH",
+            "total_findings": 0,
+            "findings_by_severity": {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0},
+            "frameworks_used": ["MITRE ATT&CK"],
+            "risk_areas_assessed": [],
+            "assessment_date": "",
+            "project_name": "",
+            "all_findings": [],
+            "all_recommendations": [],
+            "kill_chains": []
+        }
     
     # Ensure top-level fields
     normalized = {
@@ -286,7 +298,16 @@ def _normalize_structured_data(data: dict) -> dict:
     }
     
     # Normalize findings - ensure all required fields exist
-    for finding in data.get("all_findings", []):
+    findings_list = data.get("all_findings", [])
+    if not isinstance(findings_list, list):
+        logger.warning(f"normalize: all_findings is not a list, type={type(findings_list)}")
+        findings_list = []
+    
+    for finding in findings_list:
+        if not isinstance(finding, dict):
+            logger.warning(f"normalize: skipping finding that is not a dict, type={type(finding)}")
+            continue
+            
         normalized_finding = {
             "id": finding.get("id", ""),
             "title": finding.get("title", "Untitled Finding"),
@@ -313,6 +334,7 @@ def _normalize_structured_data(data: dict) -> dict:
     
     # Update counts
     normalized["total_findings"] = len(normalized["all_findings"])
+    logger.info(f"normalize: processed {normalized['total_findings']} findings")
     
     return normalized
 
@@ -1067,24 +1089,28 @@ async def get_interactive_report(
             if parsed_json and isinstance(parsed_json, dict):
                 # Check if it has findings structure
                 if parsed_json.get("all_findings") or parsed_json.get("overall_risk_rating"):
-                    logger.info(f"✓ Found structured data with {len(parsed_json.get('all_findings', []))} findings")
-                    # Normalize data to ensure all required fields exist
-                    normalized_data = _normalize_structured_data(parsed_json)
-                    if not normalized_data.get("project_name"):
-                        normalized_data["project_name"] = assessment.project_name
-                    
-                    logger.info(f"✓ Generating HTML from normalized data")
-                    html_content = generate_html(normalized_data, assessment.project_name)
-                    
-                    # Cache it
-                    assessment.report_html = html_content
-                    meta["structured"] = normalized_data
-                    meta["has_interactive_report"] = True
-                    assessment.report_meta = meta
-                    db.commit()
-                    
-                    logger.info(f"✓ Successfully generated and cached interactive HTML (Case 2.5)")
-                    return HTMLResponse(content=html_content)
+                    try:
+                        logger.info(f"✓ Found structured data with {len(parsed_json.get('all_findings', []))} findings")
+                        # Normalize data to ensure all required fields exist
+                        normalized_data = _normalize_structured_data(parsed_json)
+                        if not normalized_data.get("project_name"):
+                            normalized_data["project_name"] = assessment.project_name
+                        
+                        logger.info(f"✓ Generating HTML from normalized data")
+                        html_content = generate_html(normalized_data, assessment.project_name)
+                        
+                        # Cache it
+                        assessment.report_html = html_content
+                        meta["structured"] = normalized_data
+                        meta["has_interactive_report"] = True
+                        assessment.report_meta = meta
+                        db.commit()
+                        
+                        logger.info(f"✓ Successfully generated and cached interactive HTML (Case 2.5)")
+                        return HTMLResponse(content=html_content)
+                    except Exception as gen_error:
+                        logger.error(f"Failed to generate HTML from JSON: {gen_error}", exc_info=True)
+                        # Fall through to try markdown parsing
         except Exception as e:
             logger.error(f"Error processing JSON from assessment_report: {e}", exc_info=True)
 
