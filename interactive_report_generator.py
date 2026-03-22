@@ -1014,6 +1014,13 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
         pname = html.escape(data.get("project_name", project_name or "Project"))
         
         logger.info(f"Generating interactive HTML for '{pname}' with {len(findings)} findings")
+        logger.info(f"Findings by severity: CRITICAL={sev.get('CRITICAL', 0)}, HIGH={sev.get('HIGH', 0)}, MEDIUM={sev.get('MEDIUM', 0)}, LOW={sev.get('LOW', 0)}")
+        
+        if len(findings) == 0:
+            logger.warning(f"⚠️ WARNING: No findings in data.all_findings array!")
+            logger.warning(f"Data keys: {list(data.keys())}")
+            logger.warning(f"Findings by severity shows: {sev}")
+            logger.warning(f"This indicates a data mismatch - counts exist but findings array is empty")
     except Exception as e:
         logger.error(f"Error extracting data from structured report: {e}")
         raise
