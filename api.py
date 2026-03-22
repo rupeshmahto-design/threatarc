@@ -1240,8 +1240,22 @@ async def get_interactive_report(
     # Case 1: stored interactive HTML (new assessments)
     stored = assessment.report_html
     if stored and stored.strip().startswith("<!DOCTYPE html"):
-        logger.info("✓ Serving stored HTML (Case 1)")
-        return HTMLResponse(content=stored)
+        # Validate cached HTML isn't broken (empty findings when counts show data exists)
+        total_counts = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
+        if total_counts > 0:
+            # Check if the HTML actually has findings data
+            # Look for data-finding-id or class="fid" which appear in findings tables
+            has_findings_in_html = 'data-finding-id' in stored or 'class="fid"' in stored
+            if not has_findings_in_html:
+                logger.warning(f"⚠️ Cached HTML appears broken (no findings but counts show {total_counts} findings) - will regenerate")
+                assessment.report_html = None  # Clear broken cache
+                db.commit()
+            else:
+                logger.info(f"✓ Serving stored HTML (Case 1) - validated {total_counts} findings")
+                return HTMLResponse(content=stored)
+        else:
+            logger.info("✓ Serving stored HTML (Case 1)")
+            return HTMLResponse(content=stored)
 
     # Case 2: structured data in report_meta — regenerate HTML
     meta = assessment.report_meta or {}
