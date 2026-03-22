@@ -265,6 +265,7 @@ def parse_assessment_response(
         json_data.setdefault("all_findings", [])
         json_data.setdefault("all_recommendations", [])
         json_data.setdefault("kill_chains", [])
+        json_data.setdefault("attack_scenarios", [])
         json_data.setdefault("frameworks_used", frameworks or [])
         json_data.setdefault("risk_areas_assessed", risk_areas or [])
         json_data.setdefault("project_name", project_name)
@@ -338,6 +339,7 @@ def parse_assessment_response(
         "all_findings": findings,
         "all_recommendations": recommendations,
         "kill_chains": [],
+        "attack_scenarios": [],
         "_parsed_via": "markdown_fallback",
     }
 
