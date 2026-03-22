@@ -163,6 +163,26 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     }
   }, [assessmentId, projectName]);
 
+  // Regenerate interactive report
+  const regenerateReport = useCallback(async () => {
+    setRegenerating(true);
+    try {
+      const resp = await fetch(`${apiBase}/reports/${assessmentId}/regenerate`, {
+        method: "POST",
+        headers,
+      });
+      if (!resp.ok) {
+        const error = await resp.json();
+        throw new Error(error.detail || "Regeneration failed");
+      }
+      // Reload the page to show the regenerated report
+      window.location.reload();
+    } catch (e: any) {
+      alert(`Regeneration failed: ${e.message}`);
+      setRegenerating(false);
+    }
+  }, [assessmentId]);
+
   // Save action plan
   const saveActionPlan = useCallback(async () => {
     setApSaving(true);
@@ -229,6 +249,9 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
           </p>
         </div>
         <div style={styles.headerActions}>
+          <button onClick={regenerateReport} disabled={regenerating} style={styles.btnSecondary}>
+            {regenerating ? "⏳ Regenerating…" : "🔄 Regenerate"}
+          </button>
           <button onClick={openFullWindow} style={styles.btnSecondary}>
             ↗ Full Screen
           </button>
