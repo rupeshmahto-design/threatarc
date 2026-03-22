@@ -59,6 +59,7 @@ const PHASE_ICONS: Record<string,string> = {
 };
 
 const NAV_ITEMS = [
+  {id:"exec-summary",icon:"🎯",label:"Executive Summary"},
   {id:"overview",icon:"📋",label:"Overview"},
   {id:"attck-map",icon:"🗺",label:"ATT&CK Map"},
   {id:"kill-chain",icon:"⛓",label:"Kill Analysis"},
@@ -99,6 +100,255 @@ function matchTacticId(tactic:string):string {
   if(t.includes("impact")) return "TA0012";
   return "";
 }
+
+
+// ─── Section: Executive Summary ──────────────────────────────────────────────
+
+const ExecutiveSummary = ({
+  data, projectName, onPrint
+}: {
+  data: StructuredData;
+  projectName: string;
+  onPrint: () => void;
+}) => {
+  const overall = data.overall_risk_rating || "HIGH";
+  const sev = data.findings_by_severity || {CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0};
+  const findings = data.all_findings || [];
+  const recs = data.all_recommendations || [];
+  const fw = data.frameworks_used || [];
+  const ra = data.risk_areas_assessed || [];
+
+  // Top 5 critical/high findings
+  const top5 = [...findings]
+    .sort((a,b) => b.risk_score - a.risk_score)
+    .slice(0, 5);
+
+  // Top 3 P0 recommendations
+  const top3Recs = recs.filter(r => r.priority === "P0").slice(0, 3);
+
+  // Risk score as percentage for the arc gauge
+  const maxScore = findings.length > 0
+    ? Math.max(...findings.map(f => f.risk_score))
+    : 0;
+
+  const riskLevel = {
+    CRITICAL: { label: "CRITICAL RISK", desc: "Immediate executive action required. Critical vulnerabilities present.", pct: 92 },
+    HIGH:     { label: "HIGH RISK",     desc: "Significant vulnerabilities require urgent attention within 30 days.", pct: 70 },
+    MEDIUM:   { label: "MEDIUM RISK",   desc: "Moderate vulnerabilities should be addressed within 90 days.", pct: 45 },
+    LOW:      { label: "LOW RISK",      desc: "Minor vulnerabilities present. Routine remediation recommended.", pct: 20 },
+  }[overall] || { label: "HIGH RISK", desc: "", pct: 70 };
+
+  const totalRisk = sev.CRITICAL * 25 + sev.HIGH * 15 + sev.MEDIUM * 8 + sev.LOW * 3;
+  const maxPossible = findings.length * 25;
+  const riskPct = maxPossible > 0 ? Math.round((totalRisk / maxPossible) * 100) : 0;
+
+  return (
+    <section id="exec-summary" style={{
+      background: "#fff",
+      borderRadius: 16,
+      border: "1px solid #e2e8f0",
+      overflow: "hidden",
+      boxShadow: "0 1px 3px rgba(15,23,42,.06)",
+      scrollMarginTop: 16,
+    }}>
+      {/* Header band */}
+      <div style={{
+        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1d4ed8 100%)",
+        padding: "28px 32px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        flexWrap: "wrap",
+        gap: 16,
+      }}>
+        <div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:2,fontWeight:600,marginBottom:8}}>
+            SECURITY EXECUTIVE BRIEFING · CONFIDENTIAL
+          </div>
+          <h1 style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,lineHeight:1.2,marginBottom:6}}>
+            Threat Assessment Report
+          </h1>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.65)"}}>
+            {projectName} · {data.assessment_date}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{
+            background: SEV_BG[overall],
+            border: `1px solid ${SEV_BORDER[overall]}`,
+            borderRadius: 12,
+            padding: "10px 20px",
+            textAlign: "center",
+          }}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:SEV_COLOR[overall],textTransform:"uppercase",fontWeight:700,letterSpacing:1,marginBottom:4}}>Overall Rating</div>
+            <div style={{fontSize:24,fontWeight:900,color:SEV_COLOR[overall],letterSpacing:-0.5}}>{overall}</div>
+          </div>
+          <button
+            onClick={onPrint}
+            style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",backdropFilter:"blur(4px)"}}
+          >
+            🖨 Print One-Pager
+          </button>
+        </div>
+      </div>
+
+      <div style={{padding:"28px 32px"}}>
+        {/* Key metrics row */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:28}}>
+          {[
+            {label:"Critical Findings", val:sev.CRITICAL||0, color:"#dc2626", bg:"#fef2f2", border:"#fecaca", icon:"🔴"},
+            {label:"High Findings",     val:sev.HIGH||0,     color:"#ea580c", bg:"#fff7ed", border:"#fed7aa", icon:"🟠"},
+            {label:"Medium Findings",   val:sev.MEDIUM||0,   color:"#d97706", bg:"#fffbeb", border:"#fde68a", icon:"🟡"},
+            {label:"Total Findings",    val:findings.length, color:"#475569", bg:"#f8f9fb", border:"#e2e8f0", icon:"📊"},
+            {label:"Immediate Actions", val:recs.filter(r=>r.priority==="P0").length, color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe", icon:"⚡"},
+            {label:"Risk Score",        val:`${riskPct}%`,   color:SEV_COLOR[overall], bg:SEV_BG[overall], border:SEV_BORDER[overall], icon:"📈"},
+          ].map(m => (
+            <div key={m.label} style={{
+              background: m.bg, border: `1px solid ${m.border}`,
+              borderRadius: 12, padding: "14px 16px",
+              display: "flex", flexDirection: "column", gap: 4,
+            }}>
+              <div style={{fontSize: 11}}>{m.icon}</div>
+              <div style={{fontSize:24,fontWeight:900,color:m.color,lineHeight:1,fontFamily:"'JetBrains Mono',monospace"}}>{m.val}</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#64748b",textTransform:"uppercase",fontWeight:600,letterSpacing:0.3}}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:28}}>
+          {/* Top 5 Findings */}
+          <div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+              <span>🔍</span> Top {top5.length} Priority Findings
+            </div>
+            <div style={{border:"1px solid #e2e8f0",borderRadius:10,overflow:"hidden"}}>
+              {top5.map((f, i) => (
+                <div key={f.id} style={{
+                  display:"flex", alignItems:"center", gap:10,
+                  padding:"10px 14px",
+                  borderBottom: i < top5.length-1 ? "1px solid #f1f5f9" : "none",
+                  background: i % 2 === 0 ? "#fff" : "#f8f9fb",
+                  borderLeft: `3px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`,
+                }}>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb",fontWeight:700,flexShrink:0,minWidth:36}}>{f.id}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.title}</div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:1}}>{f.tactic||"—"} · {f.technique_id||"—"}</div>
+                  </div>
+                  <div style={{flexShrink:0,textAlign:"right"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:900,color:SEV_COLOR[f.severity]}}>{f.risk_score}</div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8"}}>/25</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Immediate Actions */}
+          <div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
+              <span>⚡</span> Immediate Actions Required (0–30 Days)
+            </div>
+            {top3Recs.length > 0 ? (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {top3Recs.map((r, i) => (
+                  <div key={r.id||i} style={{
+                    background: "#fef2f2", border: "1px solid #fecaca",
+                    borderRadius: 10, padding: "12px 14px",
+                    borderLeft: "4px solid #dc2626",
+                  }}>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                      <div style={{
+                        width:20,height:20,borderRadius:"50%",
+                        background:"#dc2626",color:"#fff",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,
+                        flexShrink:0,marginTop:1,
+                      }}>{i+1}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:800,color:"#0f172a",marginBottom:3}}>{r.title}</div>
+                        {r.risk_reduction_pct && (
+                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#16a34a",fontWeight:600}}>
+                            ↓ {r.risk_reduction_pct}% risk reduction · {r.effort_weeks||"?"}w effort · {r.owner||"—"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:12,background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
+                No P0 recommendations generated. Run a new assessment.
+              </div>
+            )}
+
+            {/* Risk breakdown */}
+            <div style={{marginTop:16,padding:"14px 16px",background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Risk Distribution</div>
+              {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s => {
+                const count = sev[s] || 0;
+                const pct = findings.length > 0 ? Math.round(count/findings.length*100) : 0;
+                return (
+                  <div key={s} style={{marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:SEV_COLOR[s]}}>{s}</span>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8"}}>{count} findings ({pct}%)</span>
+                    </div>
+                    <div style={{height:5,background:"#e2e8f0",borderRadius:3,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${pct}%`,background:SEV_COLOR[s],borderRadius:3,transition:"width 1s ease"}}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Assessment scope */}
+        <div style={{
+          background:"linear-gradient(135deg,#f8f9fb,#f1f5f9)",
+          border:"1px solid #e2e8f0",
+          borderRadius:12,
+          padding:"16px 20px",
+          display:"flex",gap:24,flexWrap:"wrap",
+        }}>
+          {[
+            ["Framework", fw.join(", ") || "—"],
+            ["Risk Areas Assessed", ra.length > 0 ? `${ra.length}: ${ra.slice(0,3).join(", ")}${ra.length>3?"…":""}` : "—"],
+            ["Assessment Date", data.assessment_date || "—"],
+            ["Classification", "CONFIDENTIAL"],
+            ["Generated By", "ThreatVision AI (Claude Sonnet)"],
+          ].map(([label, val]) => (
+            <div key={label}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:3}}>{label}</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Risk statement */}
+        <div style={{
+          marginTop:16,
+          padding:"14px 18px",
+          background: SEV_BG[overall],
+          border: `1px solid ${SEV_BORDER[overall]}`,
+          borderLeft: `4px solid ${SEV_COLOR[overall]}`,
+          borderRadius:10,
+          display:"flex",gap:12,alignItems:"center",
+        }}>
+          <span style={{fontSize:18}}>
+            {overall === "CRITICAL" ? "🚨" : overall === "HIGH" ? "⚠️" : "ℹ️"}
+          </span>
+          <div>
+            <div style={{fontSize:13,fontWeight:800,color:SEV_COLOR[overall],marginBottom:2}}>{riskLevel.label}</div>
+            <div style={{fontSize:12,color:"#475569"}}>{riskLevel.desc} {sev.CRITICAL > 0 && `${sev.CRITICAL} critical finding${sev.CRITICAL>1?"s require":"requires"} immediate remediation.`}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const OverviewSection = ({data,projectName}:{data:StructuredData;projectName:string}) => {
   const overall=data.overall_risk_rating||"HIGH";
@@ -614,6 +864,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [activeSection,setActiveSection]=useState("overview");
   const [selectedFinding,setSelectedFinding]=useState<Finding|null>(null);
   const [activeView,setActiveView]=useState<"report"|"raw">("report");
+  const [printMode,setPrintMode]=useState(false);
 
   const tok=token||localStorage.getItem("token")||localStorage.getItem("access_token")||"";
   const headers={Authorization:`Bearer ${tok}`,"Content-Type":"application/json"};
@@ -661,6 +912,19 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     finally{setApSaving(false);}
   },[assessmentId,actionPlanItems]);
 
+  const printExecSummary = useCallback(() => {
+    const el = document.getElementById("exec-summary");
+    if (!el) return;
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>${projectName} — Executive Summary</title>
+      <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Epilogue',sans-serif;background:#fff;padding:0;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style>
+      </head><body>${el.outerHTML}</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 800);
+  }, [projectName]);
+
   const addToActionPlan=useCallback((f:Finding)=>{
     setActionPlanItems(prev=>[...prev.filter(a=>a.id!==f.id),{id:f.id,title:f.title,severity:f.severity,timeline:f.timeline,assignee:f.owner||"",dueDate:"",status:"Open",notes:""}]);
     document.getElementById("action-plan")?.scrollIntoView({behavior:"smooth"});
@@ -690,7 +954,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
 
   return (
     <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:"#f8f9fb"}}>
-      <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}*{box-sizing:border-box;}`}</style>
+      <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}*{box-sizing:border-box;}@media print{nav,button,.no-print{display:none!important;}}`}</style>
 
       {/* Top bar */}
       <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"16px 16px 0 0",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,boxShadow:"0 1px 3px rgba(15,23,42,.06)"}}>
