@@ -146,10 +146,11 @@ const ExecutiveSummary = ({
     <section id="exec-summary" style={{
       background: "#fff",
       borderRadius: 16,
-      border: "1px solid #e2e8f0",
+      border: "2px solid #1d4ed8",
       overflow: "hidden",
-      boxShadow: "0 1px 3px rgba(15,23,42,.06)",
+      boxShadow: "0 4px 24px rgba(29,78,216,.15)",
       scrollMarginTop: 16,
+      minHeight: 200,
     }}>
       {/* Header band */}
       <div style={{
@@ -906,7 +907,13 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     ])
     .then(([sr,rr,ar])=>{setStructured(sr.structured||null);setRawMarkdown(rr.report||"");setActionPlanItems(ar.items||[]);})
     .catch(e=>setError(`Failed to load report: ${e.message}`))
-    .finally(()=>setLoading(false));
+    .finally(()=>{
+      setLoading(false);
+      // Always start at top so Executive Summary is visible
+      setTimeout(()=>{
+        if(scrollContainerRef.current) scrollContainerRef.current.scrollTop=0;
+      }, 100);
+    });
   },[assessmentId]);
 
   useEffect(()=>{
