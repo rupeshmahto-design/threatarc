@@ -56,12 +56,8 @@ def extract_markdown_body(raw_response: str) -> str:
     """
     Strip the JSON block from the response, returning only the markdown report body.
     """
-    # Remove ```json ... ``` block (greedy match to get the whole block)
+    # Remove ```json ... ``` block
     cleaned = re.sub(r"```json\s*[\s\S]*?```\s*", "", raw_response, flags=re.MULTILINE)
-    
-    # Also remove any standalone { ... } JSON objects at the start
-    cleaned = re.sub(r"^\s*\{[\s\S]*?\n\}\s*", "", cleaned, flags=re.MULTILINE)
-    
     return cleaned.strip()
 
 
@@ -81,123 +77,35 @@ def _extract_severity_from_markdown(markdown: str) -> Dict[str, int]:
 def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
     """
     Fallback: extract findings from markdown tables.
-    Handles tables with optional row number column.
+    Looks for rows starting with F### pattern.
     """
     findings = []
-    
-    # Match table rows - handles formats:
-    # | F001 | Title | ... |  (Finding ID first)
-    # | 1 | F001 | Title | ... |  (Row number, then Finding ID)
-    # More flexible pattern to find F### anywhere in the row
-    lines = markdown.split('\n')
-    
-    for line in lines:
-        # Skip if not a table row or is a separator
-        if '|' not in line or '---' in line:
-            continue
-        
-        # Look for F### pattern in the line
-        finding_match = re.search(r'(F\d{3,4})', line)
-        if not finding_match:
-            continue
-        
-        # Split into columns
-        columns = [col.strip() for col in line.split('|')]
-        # Filter out empty columns (from leading/trailing pipes)
-        columns = [c for c in columns if c]
-        
-        if len(columns) < 3:  # Need at least ID, Title, Severity
-            continue
-        
-        # Find which column has the Finding ID
-        finding_id = finding_match.group(1)
-        finding_idx = -1
-        for i, col in enumerate(columns):
-            if finding_id in col:
-                finding_idx = i
-                break
-        
-        if finding_idx == -1:
-            continue
-        
-        # Extract fields based on position relative to Finding ID
-        # Typical format: [Row#,] F001, Title, [Tactic,] Severity, Risk Score, Evidence, Impact, Action
-        title = columns[finding_idx + 1] if len(columns) > finding_idx + 1 else f"Finding {finding_id}"
-        
-        # Look for severity in next 2-3 columns
-        severity = "MEDIUM"
-        for i in range(finding_idx + 2, min(finding_idx + 5, len(columns))):
-            col_upper = columns[i].upper()
-            if "CRITICAL" in col_upper or "CRIT" in col_upper:
-                severity = "CRITICAL"
-                break
-            elif "HIGH" in col_upper:
-                severity = "HIGH"
-                break
-            elif "MEDIUM" in col_upper or "MED" in col_upper:
-                severity = "MEDIUM"
-                break
-            elif "LOW" in col_upper:
-                severity = "LOW"
-                break
-        
-        # Try to extract risk score
-        risk_score = 9
-        for i in range(finding_idx + 2, min(finding_idx + 6, len(columns))):
-            try:
-                # Look for numbers like "25/25" or just "9"
-                score_match = re.search(r'(\d+)', columns[i])
-                if score_match:
-                    risk_score = int(score_match.group(1))
-                    break
-            except:
-                pass
-        
-        # Extract additional fields if available
-        evidence = ""
-        business_impact = ""
-        tactic = ""
-        
-        # Look for evidence/source column (usually after risk score)
-        if len(columns) > finding_idx + 5:
-            evidence = columns[finding_idx + 5]
-        
-        # Look for business impact
-        if len(columns) > finding_idx + 6:
-            business_impact = columns[finding_idx + 6]
-        
-        # Look for tactic (might be between title and severity)
-        if len(columns) > finding_idx + 2:
-            potential_tactic = columns[finding_idx + 2]
-            # If it's not a severity word and not a number, might be tactic
-            if not any(sev in potential_tactic.upper() for sev in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']) and not re.match(r'^\d', potential_tactic):
-                tactic = potential_tactic
-        
+    # Match table rows with finding IDs like F001, F002, etc.
+    row_pattern = re.compile(
+        r"\|\s*(F\d{3})\s*\|\s*([^|]+)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|",
+    )
+    for match in row_pattern.finditer(markdown):
+        fid = match.group(1).strip()
+        title = match.group(2).strip()
+        sev_raw = match.group(5).strip().upper()
+        sev = "CRITICAL" if "CRITICAL" in sev_raw else "HIGH" if "HIGH" in sev_raw else "MEDIUM" if "MEDIUM" in sev_raw else "LOW"
         findings.append({
-            "id": finding_id,
+            "id": fid,
             "title": title,
-            "description": title,
-            "severity": severity,
+            "severity": sev,
             "likelihood": 3,
             "impact": 3,
-            "risk_score": risk_score,
-            "priority": "P0" if severity == "CRITICAL" else "P1" if severity == "HIGH" else "P2",
+            "risk_score": 9,
+            "priority": "P0" if sev == "CRITICAL" else "P1" if sev == "HIGH" else "P2",
             "owner": "Security Team",
-            "timeline": "30–90 days" if severity in ["CRITICAL", "HIGH"] else "90+ days",
-            "tactic": tactic,
+            "timeline": "30–90 days",
+            "tactic": "",
             "technique_id": "",
-            "tactic_id": "",
-            "doc_source": evidence,
-            "verbatim_evidence": evidence,
-            "business_impact": business_impact,
-            "affected_systems": [],
+            "doc_source": "",
+            "verbatim_evidence": "",
+            "business_impact": "",
             "mitigation_steps": [],
-            "validation_method": "",
-            "references": [],
         })
-        logger.info(f"Extracted: {finding_id} - {title[:50] if len(title) > 50 else title} - {severity}")
-    
-    logger.info(f"Total extracted: {len(findings)} findings from markdown")
     return findings
 
 
@@ -265,7 +173,6 @@ def parse_assessment_response(
         json_data.setdefault("all_findings", [])
         json_data.setdefault("all_recommendations", [])
         json_data.setdefault("kill_chains", [])
-        json_data.setdefault("attack_scenarios", [])
         json_data.setdefault("frameworks_used", frameworks or [])
         json_data.setdefault("risk_areas_assessed", risk_areas or [])
         json_data.setdefault("project_name", project_name)
@@ -282,7 +189,6 @@ def parse_assessment_response(
         for f in json_data["all_findings"]:
             f.setdefault("id", "F???")
             f.setdefault("title", "Untitled Finding")
-            f.setdefault("description", f.get("title", "No description available"))  # Add description fallback
             f.setdefault("tactic", "")
             f.setdefault("technique_id", "")
             f.setdefault("tactic_id", "")
@@ -296,10 +202,7 @@ def parse_assessment_response(
             f.setdefault("doc_source", "")
             f.setdefault("verbatim_evidence", "")
             f.setdefault("business_impact", "")
-            f.setdefault("affected_systems", [])
             f.setdefault("mitigation_steps", [])
-            f.setdefault("validation_method", "")
-            f.setdefault("references", [])
 
         # Normalize each recommendation
         for r in json_data["all_recommendations"]:
@@ -339,7 +242,6 @@ def parse_assessment_response(
         "all_findings": findings,
         "all_recommendations": recommendations,
         "kill_chains": [],
-        "attack_scenarios": [],
         "_parsed_via": "markdown_fallback",
     }
 

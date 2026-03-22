@@ -117,7 +117,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [actionPlanItems, setActionPlanItems] = useState<ActionPlanItem[]>([]);
   const [apSaving, setApSaving] = useState(false);
   const [apSaved, setApSaved] = useState(false);
@@ -164,26 +163,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     }
   }, [assessmentId, projectName]);
 
-  // Regenerate interactive report
-  const regenerateReport = useCallback(async () => {
-    setRegenerating(true);
-    try {
-      const resp = await fetch(`${apiBase}/reports/${assessmentId}/regenerate`, {
-        method: "POST",
-        headers,
-      });
-      if (!resp.ok) {
-        const error = await resp.json();
-        throw new Error(error.detail || "Regeneration failed");
-      }
-      // Reload the page to show the regenerated report
-      window.location.reload();
-    } catch (e: any) {
-      alert(`Regeneration failed: ${e.message}`);
-      setRegenerating(false);
-    }
-  }, [assessmentId]);
-
   // Save action plan
   const saveActionPlan = useCallback(async () => {
     setApSaving(true);
@@ -204,7 +183,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   }, [assessmentId, actionPlanItems]);
 
   const openFullWindow = () => {
-    window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${encodeURIComponent(token)}`, "_blank");
+    window.open(`${apiBase}/reports/${assessmentId}/interactive`, "_blank");
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -250,9 +229,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
           </p>
         </div>
         <div style={styles.headerActions}>
-          <button onClick={regenerateReport} disabled={regenerating} style={styles.btnSecondary}>
-            {regenerating ? "⏳ Regenerating…" : "🔄 Regenerate"}
-          </button>
           <button onClick={openFullWindow} style={styles.btnSecondary}>
             ↗ Full Screen
           </button>
@@ -305,7 +281,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         <div style={styles.iframeWrapper}>
           <iframe
             ref={iframeRef}
-            src={`${apiBase}/reports/${assessmentId}/interactive?token=${encodeURIComponent(token)}`}
+            src={`${apiBase}/reports/${assessmentId}/interactive?token=${token}`}
             style={styles.iframe}
             title="Interactive Threat Assessment Report"
             sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"

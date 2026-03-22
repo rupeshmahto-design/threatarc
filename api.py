@@ -3,7 +3,7 @@ REST API for Threat Modeling Tool
 FastAPI endpoints with API key authentication
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Header, Request, Response, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Header, Request, Response
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, PlainTextResponse, FileResponse
@@ -266,311 +266,11 @@ async def log_api_usage(request: Request, api_key: APIKey, status_code: int, res
 
 # ── NEW: parse + generate helper ─────────────────────────────────────────────
 
-def _normalize_structured_data(data: dict) -> dict:
-    """Normalize structured JSON data to ensure all required fields exist"""
-    if not isinstance(data, dict):
-        logger.warning(f"normalize: data is not a dict, type={type(data)}")
-        return {
-            "overall_risk_rating": "HIGH",
-            "total_findings": 0,
-            "findings_by_severity": {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0},
-            "frameworks_used": ["MITRE ATT&CK"],
-            "risk_areas_assessed": [],
-            "assessment_date": "",
-            "project_name": "",
-            "all_findings": [],
-            "all_recommendations": [],
-            "kill_chains": []
-        }
-    
-    # Ensure top-level fields
-    normalized = {
-        "overall_risk_rating": data.get("overall_risk_rating", "HIGH"),
-        "total_findings": data.get("total_findings", 0),
-        "findings_by_severity": data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}),
-        "frameworks_used": data.get("frameworks_used", ["MITRE ATT&CK"]),
-        "risk_areas_assessed": data.get("risk_areas_assessed", []),
-        "assessment_date": data.get("assessment_date", ""),
-        "project_name": data.get("project_name", ""),
-        "all_findings": [],
-        "all_recommendations": data.get("all_recommendations", []),
-        "kill_chains": data.get("kill_chains", [])
-    }
-    
-    # Normalize findings - ensure all required fields exist
-    findings_list = data.get("all_findings", [])
-    if not isinstance(findings_list, list):
-        logger.warning(f"normalize: all_findings is not a list, type={type(findings_list)}")
-        findings_list = []
-    
-    for finding in findings_list:
-        if not isinstance(finding, dict):
-            logger.warning(f"normalize: skipping finding that is not a dict, type={type(finding)}")
-            continue
-            
-        normalized_finding = {
-            "id": finding.get("id", ""),
-            "title": finding.get("title", "Untitled Finding"),
-            "description": finding.get("description", finding.get("title", "No description")),  # Use title as fallback
-            "tactic": finding.get("tactic", ""),
-            "technique_id": finding.get("technique_id", ""),
-            "tactic_id": finding.get("tactic_id", ""),
-            "severity": finding.get("severity", "MEDIUM"),
-            "likelihood": finding.get("likelihood", 3),
-            "impact": finding.get("impact", 3),
-            "risk_score": finding.get("risk_score", 9),
-            "priority": finding.get("priority", "P1"),
-            "owner": finding.get("owner", "Security Team"),
-            "timeline": finding.get("timeline", "30-90 days"),
-            "doc_source": finding.get("doc_source", ""),
-            "verbatim_evidence": finding.get("verbatim_evidence", ""),
-            "business_impact": finding.get("business_impact", ""),
-            "affected_systems": finding.get("affected_systems", []),
-            "mitigation_steps": finding.get("mitigation_steps", []),
-            "validation_method": finding.get("validation_method", ""),
-            "references": finding.get("references", [])
-        }
-        normalized["all_findings"].append(normalized_finding)
-    
-    # Update counts
-    normalized["total_findings"] = len(normalized["all_findings"])
-    logger.info(f"normalize: processed {normalized['total_findings']} findings")
-    
-    return normalized
-
-
-def _create_markdown_html(markdown_text: str, project_name: str, frameworks: list) -> str:
-    """
-    Create a simple HTML page from raw markdown text when parsing fails.
-    This is a fallback for old assessments that can't be parsed.
-    """
-    import html
-    
-    # Escape HTML entities
-    escaped_markdown = html.escape(markdown_text)
-    
-    # Simple markdown-to-HTML conversion
-    lines = escaped_markdown.split('\n')
-    html_lines = []
-    in_code_block = False
-    
-    for line in lines:
-        if line.strip().startswith('```'):
-            in_code_block = not in_code_block
-            if in_code_block:
-                html_lines.append('<pre style="background:#f3f4f6;padding:12px;border-radius:6px;overflow-x:auto;"><code>')
-            else:
-                html_lines.append('</code></pre>')
-            continue
-        
-        if in_code_block:
-            html_lines.append(line)
-            continue
-            
-        if line.startswith('# '):
-            html_lines.append(f'<h1 style="color:#1f2937;margin-top:24px;">{line[2:]}</h1>')
-        elif line.startswith('## '):
-            html_lines.append(f'<h2 style="color:#374151;margin-top:20px;">{line[3:]}</h2>')
-        elif line.startswith('### '):
-            html_lines.append(f'<h3 style="color:#4b5563;margin-top:16px;">{line[4:]}</h3>')
-        elif line.startswith('- ') or line.startswith('* '):
-            html_lines.append(f'<li style="margin:4px 0;">{line[2:]}</li>')
-        elif line.startswith('**') and line.endswith('**'):
-            html_lines.append(f'<p style="font-weight:600;margin:8px 0;">{line[2:-2]}</p>')
-        elif line.strip():
-            html_lines.append(f'<p style="margin:8px 0;line-height:1.6;">{line}</p>')
-        else:
-            html_lines.append('<br>')
-    
-    html_content = '\n'.join(html_lines)
-    framework_str = ', '.join(frameworks) if frameworks else 'Multiple Frameworks'
-    
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{project_name} — Threat Assessment Report</title>
-<style>
-body {{
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #f9fafb;
-    color: #1f2937;
-    margin: 0;
-    padding: 20px;
-}}
-.container {{
-    max-width: 900px;
-    margin: 0 auto;
-    background: white;
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-}}
-.header {{
-    border-bottom: 3px solid #3b82f6;
-    padding-bottom: 20px;
-    margin-bottom: 30px;
-}}
-.header h1 {{
-    margin: 0 0 8px 0;
-    color: #1f2937;
-    font-size: 32px;
-}}
-.meta {{
-    color: #6b7280;
-    font-size: 14px;
-}}
-.badge {{
-    display: inline-block;
-    background: #eff6ff;
-    color: #1e40af;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-right: 8px;
-}}
-.content {{
-    line-height: 1.8;
-}}
-code {{
-    font-family: 'Courier New', monospace;
-    background: #f3f4f6;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.9em;
-}}
-</style>
-</head>
-<body>
-<div class="container">
-<div class="header">
-<h1>🛡️ {project_name}</h1>
-<div class="meta">
-<span class="badge">{framework_str}</span>
-<span>Threat Assessment Report</span>
-</div>
-</div>
-<div class="content">
-{html_content}
-</div>
-</div>
-</body>
-</html>"""
-
-
-def _convert_structured_to_markdown(data: dict, project_name: str) -> str:
-    """Convert structured JSON data to markdown format for PDF generation"""
-    from datetime import datetime
-    
-    md_lines = []
-    md_lines.append(f"# Threat Assessment Report")
-    md_lines.append(f"")
-    md_lines.append(f"**Project:** {project_name}")
-    md_lines.append(f"**Framework:** {', '.join(data.get('frameworks_used', ['MITRE ATT&CK']))}")
-    md_lines.append(f"**Generated:** {data.get('assessment_date', datetime.now().strftime('%B %d, %Y'))}")
-    md_lines.append(f"")
-    md_lines.append(f"## Executive Summary")
-    md_lines.append(f"")
-    md_lines.append(f"**Overall Risk Rating:** {data.get('overall_risk_rating', 'HIGH')}")
-    md_lines.append(f"**Total Findings:** {data.get('total_findings', 0)}")
-    md_lines.append(f"")
-    sev = data.get('findings_by_severity', {})
-    md_lines.append(f"- CRITICAL: {sev.get('CRITICAL', 0)}")
-    md_lines.append(f"- HIGH: {sev.get('HIGH', 0)}")
-    md_lines.append(f"- MEDIUM: {sev.get('MEDIUM', 0)}")
-    md_lines.append(f"- LOW: {sev.get('LOW', 0)}")
-    md_lines.append(f"")
-    
-    # Findings section
-    findings = data.get('all_findings', [])
-    if findings:
-        md_lines.append(f"## All Findings ({len(findings)} total)")
-        md_lines.append(f"")
-        md_lines.append("| ID | Title | Tactic | Severity | Risk Score |")
-        md_lines.append("|---|---|---|---|---|")
-        
-        for f in findings:
-            fid = f.get('id', '')
-            title = f.get('title', '')[:60]
-            tactic = f.get('tactic', '')[:30]
-            severity = f.get('severity', 'MEDIUM')
-            risk_score = f.get('risk_score', 9)
-            md_lines.append(f"| {fid} | {title} | {tactic} | {severity} | {risk_score} |")
-        
-        md_lines.append(f"")
-        md_lines.append(f"## Detailed Findings")
-        md_lines.append(f"")
-        
-        for idx, f in enumerate(findings, 1):
-            md_lines.append(f"### {f.get('id', f'F{idx:03d}')} — {f.get('title', 'Unnamed Finding')}")
-            md_lines.append(f"")
-            md_lines.append(f"**Severity:** {f.get('severity', 'MEDIUM')} | **Risk Score:** {f.get('risk_score', 9)}/25")
-            md_lines.append(f"")
-            md_lines.append(f"**Tactic:** {f.get('tactic', 'N/A')}")
-            md_lines.append(f"**Technique:** {f.get('technique_id', 'N/A')}")
-            md_lines.append(f"")
-            md_lines.append(f"**Description:**")
-            md_lines.append(f"")
-            md_lines.append(f"{f.get('description', 'No description provided.')}")
-            md_lines.append(f"")
-            
-            if f.get('verbatim_evidence'):
-                md_lines.append(f"**Evidence:**")
-                md_lines.append(f"")
-                md_lines.append(f"> {f.get('verbatim_evidence', '')}")
-                md_lines.append(f"")
-            
-            if f.get('business_impact'):
-                md_lines.append(f"**Business Impact:**")
-                md_lines.append(f"")
-                md_lines.append(f"{f.get('business_impact', '')}")
-                md_lines.append(f"")
-            
-            steps = f.get('mitigation_steps', [])
-            if steps:
-                md_lines.append(f"**Mitigation Steps:**")
-                md_lines.append(f"")
-                for i, step in enumerate(steps, 1):
-                    md_lines.append(f"{i}. {step}")
-                md_lines.append(f"")
-            
-            md_lines.append(f"---")
-            md_lines.append(f"")
-    
-    # Recommendations section
-    recs = data.get('all_recommendations', [])
-    if recs:
-        md_lines.append(f"## Recommendations ({len(recs)} total)")
-        md_lines.append(f"")
-        
-        for priority in ['P0', 'P1', 'P2']:
-            priority_recs = [r for r in recs if r.get('priority') == priority]
-            if priority_recs:
-                md_lines.append(f"### {priority} Priority Recommendations")
-                md_lines.append(f"")
-                
-                for rec in priority_recs:
-                    md_lines.append(f"**{rec.get('title', 'Recommendation')}**")
-                    md_lines.append(f"")
-                    steps = rec.get('implementation_steps', [])
-                    for i, step in enumerate(steps, 1):
-                        md_lines.append(f"{i}. {step}")
-                    md_lines.append(f"")
-                    md_lines.append(f"*Timeline: {rec.get('timeline', '30-90 days')} | Effort: {rec.get('effort', 'Medium')}*")
-                    md_lines.append(f"")
-    
-    return "\n".join(md_lines)
-
-
 def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, risk_focus_areas: list):
     """
     Parse Claude's raw response into structured data + interactive HTML.
-    Now always returns HTML - either from structured data or fallback.
+    Never raises — returns safe fallbacks on any error.
     """
-    from report_parser import extract_markdown_body
-    
     try:
         structured_data, markdown_body = parse_assessment_response(
             raw_response=raw_report,
@@ -578,16 +278,11 @@ def _parse_and_generate(raw_report: str, project_name: str, frameworks: list, ri
             frameworks=frameworks,
             risk_areas=risk_focus_areas,
         )
-        logger.info(f"✓ Parsed assessment: {len(structured_data.get('all_findings', []))} findings")
         interactive_html = generate_html(structured_data, project_name)
-        logger.info(f"✓ Generated interactive HTML: {len(interactive_html)} chars")
         return structured_data, markdown_body, interactive_html
     except Exception as parse_err:
-        logger.error(f"⚠️ Report parsing/generation failed: {parse_err}", exc_info=True)
-        # Use cleaned markdown (JSON block stripped) for fallback
-        cleaned_markdown = extract_markdown_body(raw_report)
-        fallback_html = _create_markdown_html(cleaned_markdown, project_name, frameworks)
-        return {}, cleaned_markdown, fallback_html
+        logger.warning(f"⚠️ Report parsing/generation failed: {parse_err} — using raw report")
+        return {}, raw_report, None
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -623,62 +318,6 @@ async def health_check(request: Request):
         "timestamp": datetime.utcnow().isoformat(),
         "file_processing_dependencies": deps,
         "file_processor_available": FILE_PROCESSOR_AVAILABLE
-    }
-
-
-@app.get("/api/debug/assessment/{assessment_id}")
-async def debug_assessment(
-    assessment_id: int,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Debug endpoint to inspect assessment data"""
-    assessment = db.query(ThreatAssessment).filter(
-        ThreatAssessment.id == assessment_id,
-        ThreatAssessment.organization_id == user.organization_id
-    ).first()
-    if not assessment:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    
-    report_data = assessment.assessment_report
-    report_preview = None
-    report_type = None
-    report_length = None
-    
-    if report_data:
-        report_type = type(report_data).__name__
-        if isinstance(report_data, str):
-            report_length = len(report_data)
-            report_preview = report_data[:500]
-        elif isinstance(report_data, dict):
-            import json
-            report_str = json.dumps(report_data)
-            report_length = len(report_str)
-            report_preview = report_str[:500]
-    
-    meta = assessment.report_meta or {}
-    
-    return {
-        "id": assessment.id,
-        "project_name": assessment.project_name,
-        "framework": assessment.framework,
-        "status": assessment.status,
-        "has_report_html": bool(assessment.report_html),
-        "report_html_length": len(assessment.report_html) if assessment.report_html else 0,
-        "has_assessment_report": bool(assessment.assessment_report),
-        "assessment_report_type": report_type,
-        "assessment_report_length": report_length,
-        "assessment_report_preview": report_preview,
-        "has_report_meta": bool(meta),
-        "report_meta_keys": list(meta.keys()) if isinstance(meta, dict) else None,
-        "has_structured": bool(meta.get("structured")) if isinstance(meta, dict) else False,
-        "structured_findings_count": len(meta.get("structured", {}).get("all_findings", [])) if isinstance(meta, dict) else 0,
-        "counts": {
-            "critical": assessment.critical_count,
-            "high": assessment.high_count,
-            "medium": assessment.medium_count,
-            "low": assessment.low_count,
-        }
     }
 
 
@@ -756,50 +395,6 @@ async def get_current_user_from_token(token: str = Depends(oauth2_scheme), db: S
             raise credentials_exception
     except PyJWTError:
         raise credentials_exception
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise credentials_exception
-    return user
-
-async def get_current_user_optional_query(
-    request: Request,
-    token_query: Optional[str] = Query(None, alias="token"),
-    db: Session = Depends(get_db)
-):
-    """
-    Authentication dependency that supports both header and query parameter tokens.
-    Useful for iframe embedding where Authorization headers cannot be passed.
-    """
-    import jwt
-    from jwt import PyJWTError
-    
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    # Try to get token from Authorization header first
-    auth_header = request.headers.get("Authorization")
-    header_token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        header_token = auth_header.replace("Bearer ", "")
-    
-    # Use query parameter if header is not present (for iframe)
-    auth_token = header_token or token_query
-    
-    if not auth_token:
-        raise credentials_exception
-    
-    try:
-        SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-        payload = jwt.decode(auth_token, SECRET_KEY, algorithms=["HS256"])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except PyJWTError:
-        raise credentials_exception
-    
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise credentials_exception
@@ -1120,8 +715,6 @@ async def download_pdf(
 ):
     from fastapi.responses import Response
     from pdf_generator import generate_pdf
-    from report_parser import extract_markdown_body
-    import json as json_lib
 
     assessment = db.query(ThreatAssessment).filter(
         ThreatAssessment.id == assessment_id,
@@ -1130,39 +723,7 @@ async def download_pdf(
     if not assessment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
 
-    report_content = assessment.assessment_report
-    
-    # If report is JSON, convert to markdown first
-    if report_content:
-        try:
-            # Try parsing as JSON
-            if isinstance(report_content, str):
-                parsed = json_lib.loads(report_content)
-            elif isinstance(report_content, dict):
-                parsed = report_content
-            else:
-                parsed = None
-            
-            if parsed and isinstance(parsed, dict) and (parsed.get("all_findings") or parsed.get("overall_risk_rating")):
-                # Convert JSON to markdown format
-                logger.info(f"Converting JSON to markdown for PDF generation (assessment {assessment_id})")
-                # Normalize before converting
-                normalized = _normalize_structured_data(parsed)
-                if not normalized.get("project_name"):
-                    normalized["project_name"] = assessment.project_name
-                report_content = _convert_structured_to_markdown(normalized, assessment.project_name)
-            else:
-                # String but not JSON - clean it by removing JSON blocks
-                if isinstance(report_content, str):
-                    logger.info(f"Cleaning markdown for PDF generation (assessment {assessment_id})")
-                    report_content = extract_markdown_body(report_content)
-        except (json_lib.JSONDecodeError, ValueError, TypeError) as e:
-            # Not JSON, clean the markdown
-            logger.info(f"Cleaning markdown for PDF generation (assessment {assessment_id}): {e}")
-            if isinstance(report_content, str):
-                report_content = extract_markdown_body(report_content)
-    
-    pdf_bytes = generate_pdf(report_content, assessment.project_name, assessment.framework)
+    pdf_bytes = generate_pdf(assessment.assessment_report, assessment.project_name, assessment.framework)
     date_str = assessment.created_at.strftime('%Y%m%d')
     filename = f"Threat_Assessment_{assessment.project_name.replace(' ', '_')}_{date_str}.pdf"
     return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
@@ -1200,22 +761,30 @@ async def get_report_details(
 @app.get("/reports/{assessment_id}/interactive")
 async def get_interactive_report(
     assessment_id: int,
-    user: User = Depends(get_current_user_optional_query),
+    token: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     Serve the interactive HTML report.
-    
-    Flow:
-    1. Check for valid cached HTML
-    2. If cache invalid or missing, regenerate from source data
-    3. Cache and return
-    
-    Supports authentication via:
-    - Authorization: Bearer <token> header (standard)
-    - ?token=<token> query parameter (for iframe embedding)
+    Accepts token as query param so iframe can authenticate without cookies.
+    - New assessments: serve stored report_html instantly
+    - Old assessments: regenerate from markdown on-the-fly, then cache it
     """
     from fastapi.responses import HTMLResponse
+
+    # Authenticate via query param token (required for iframe)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        import jwt as pyjwt
+        SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+        payload = pyjwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
     assessment = db.query(ThreatAssessment).filter(
         ThreatAssessment.id == assessment_id,
@@ -1224,203 +793,43 @@ async def get_interactive_report(
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    logger.info(f"=== Interactive Report for Assessment {assessment_id}: {assessment.project_name} ===")
-    
+    # Case 1: stored interactive HTML (new assessments)
+    stored = assessment.report_html
+    if stored and stored.strip().startswith("<!DOCTYPE html"):
+        return HTMLResponse(content=stored)
+
+    # Case 2: structured data in report_meta — regenerate HTML
     meta = assessment.report_meta or {}
-    total_findings_count = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0)
-    
-    # Helper function to validate HTML has findings
-    def html_has_findings(html_str: str) -> bool:
-        """Check if HTML contains actual findings data."""
-        return 'data-finding-id' in html_str or 'class="fid"' in html_str or '<tr data-severity=' in html_str
-    
-    # STEP 1: Check cached HTML
-    if assessment.report_html and assessment.report_html.strip().startswith("<!DOCTYPE html"):
-        # Validate cache isn't broken (has findings when counts show data exists)
-        if total_findings_count > 0:
-            if html_has_findings(assessment.report_html):
-                logger.info(f"✓ Serving valid cached HTML ({total_findings_count} findings)")
-                return HTMLResponse(content=assessment.report_html)
-            else:
-                logger.warning(f"⚠️ Cached HTML is broken (no findings but DB shows {total_findings_count}) - clearing cache")
-                assessment.report_html = None
+    structured = meta.get("structured")
+    if structured and structured.get("all_findings"):
+        try:
+            html_content = generate_html(structured, assessment.project_name)
+            assessment.report_html = html_content
+            db.commit()
+            return HTMLResponse(content=html_content)
+        except Exception as e:
+            logger.warning(f"Could not regenerate interactive HTML: {e}")
+
+    # Case 3: parse markdown on-the-fly (old assessments)
+    if assessment.assessment_report:
+        try:
+            structured_data, _, html_content = _parse_and_generate(
+                raw_report=assessment.assessment_report,
+                project_name=assessment.project_name,
+                frameworks=meta.get("frameworks", [assessment.framework]),
+                risk_focus_areas=meta.get("risk_areas", []),
+            )
+            if html_content:
+                assessment.report_html = html_content
+                meta["structured"] = structured_data
+                meta["has_interactive_report"] = True
+                assessment.report_meta = meta
                 db.commit()
-        else:
-            # No findings expected, cache is fine
-            logger.info("✓ Serving cached HTML (no findings)")
-            return HTMLResponse(content=assessment.report_html)
-    
-    # STEP 2: No valid cache - regenerate from source data
-    logger.info(f"Regenerating interactive HTML from source data...")
-    
-    structured_data = None
-    html_content = None
-    
-    # Try path A: report_meta.structured (already parsed)
-    if meta.get("structured") and meta["structured"].get("all_findings"):
-        try:
-            logger.info(f"Using cached structured data: {len(meta['structured']['all_findings'])} findings")
-            structured_data = meta["structured"]
-            html_content = generate_html(structured_data, assessment.project_name)
-            logger.info(f"✓ Generated HTML from cached structured data")
+                return HTMLResponse(content=html_content)
         except Exception as e:
-            logger.error(f"Failed to generate from cached structured: {e}", exc_info=True)
-            structured_data = None
-            html_content = None
-    
-    # Try path B: Parse assessment_report
-    if not html_content and assessment.assessment_report:
-        try:
-            report_data = assessment.assessment_report
-            
-            # B1: Is it JSON?
-            if isinstance(report_data, dict):
-                logger.info("Parsing dict/JSON from assessment_report")
-                normalized = _normalize_structured_data(report_data)
-                if not normalized.get("project_name"):
-                    normalized["project_name"] = assessment.project_name
-                if not normalized.get("frameworks_used"):
-                    normalized["frameworks_used"] = [assessment.framework]
-                structured_data = normalized
-                html_content = generate_html(structured_data, assessment.project_name)
-                logger.info(f"✓ Generated HTML from JSON ({len(structured_data.get('all_findings', []))} findings)")
-            
-            # B2: Is it markdown string?
-            elif isinstance(report_data, str):
-                # Try parsing as JSON string first
-                import json as json_lib
-                try:
-                    parsed_json = json_lib.loads(report_data)
-                    if parsed_json.get("all_findings") or parsed_json.get("overall_risk_rating"):
-                        logger.info("Parsing JSON string from assessment_report")
-                        normalized = _normalize_structured_data(parsed_json)
-                        if not normalized.get("project_name"):
-                            normalized["project_name"] = assessment.project_name
-                        structured_data = normalized
-                        html_content = generate_html(structured_data, assessment.project_name)
-                        logger.info(f"✓ Generated HTML from JSON string ({len(structured_data.get('all_findings', []))} findings)")
-                except (json_lib.JSONDecodeError, ValueError, TypeError):
-                    # Not JSON - parse as markdown
-                    logger.info("Parsing markdown from assessment_report")
-                    structured_data, _, html_content = _parse_and_generate(
-                        raw_report=report_data,
-                        project_name=assessment.project_name,
-                        frameworks=[assessment.framework],
-                        risk_focus_areas=meta.get("risk_areas", []),
-                    )
-                    if html_content:
-                        logger.info(f"✓ Generated HTML from markdown ({len(structured_data.get('all_findings', []))} findings)")
-                    else:
-                        logger.warning("_parse_and_generate returned no HTML")
-        
-        except Exception as e:
-            logger.error(f"Failed to parse assessment_report: {e}", exc_info=True)
-            structured_data = None
-            html_content = None
-    
-    # STEP 3: Cache and return if successful
-    if html_content and structured_data:
-        assessment.report_html = html_content
-        meta["structured"] = structured_data
-        meta["has_interactive_report"] = True
-        assessment.report_meta = meta
-        db.commit()
-        logger.info(f"✓ Successfully generated and cached interactive HTML")
-        return HTMLResponse(content=html_content)
-    
-    # STEP 4: All generation failed - return helpful error page
-    logger.error(f"❌ All generation paths failed for assessment {assessment_id}")
-    logger.error(f"State: report_html={bool(assessment.report_html)}, assessment_report={type(assessment.assessment_report).__name__ if assessment.assessment_report else None}, structured={bool(meta.get('structured'))}")
-    
-    
-    # Generate a fallback "empty report" HTML instead of error
-    fallback_html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{assessment.project_name} — No Data Available</title>
-<style>
-body {{font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px;}}
-.container {{background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 40px; max-width: 600px; text-align: center;}}
-.icon {{font-size: 64px; margin-bottom: 20px;}}
-h1 {{color: #1f2937; margin-bottom: 12px; font-size: 24px;}}
-p {{color: #6b7280; line-height: 1.6; margin-bottom: 24px;}}
-.info {{background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: left;}}
-.info-title {{color: #1e40af; font-weight: 600; margin-bottom: 8px;}}
-.info-item {{color: #64748b; font-size: 14px; margin: 4px 0; font-family: 'Courier New', monospace;}}
-.btn {{display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 8px 6px; transition: all 0.2s; cursor: pointer; border: none; font-size: 14px;}}
-.btn:hover {{background: #1d4ed8; transform: translateY(-1px);}}
-.btn-secondary {{background: #10b981;}}
-.btn-secondary:hover {{background: #059669;}}
-.btn:disabled {{background: #9ca3af; cursor: not-allowed; transform: none;}}
-#status {{margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 14px; display: none;}}
-.status-loading {{background: #fef3c7; color: #92400e; border: 1px solid #fde68a;}}
-.status-success {{background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;}}
-.status-error {{background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;}}
-</style>
-</head>
-<body>
-<div class="container">
-<div class="icon">📋</div>
-<h1>Interactive Report Not Available</h1>
-<p>The interactive report for <strong>{assessment.project_name}</strong> cannot be generated at this time.</p>
-<div class="info">
-<div class="info-title">Assessment Details:</div>
-<div class="info-item">ID: {assessment.id}</div>
-<div class="info-item">Status: {assessment.status}</div>
-<div class="info-item">Framework: {assessment.framework}</div>
-<div class="info-item">Created: {assessment.created_at.strftime('%B %d, %Y')}</div>
-</div>
-<p style="font-size: 14px;">This usually means the assessment is incomplete or was created before interactive reports were available.</p>
-<p style="font-size: 14px;"><strong>Solution:</strong> Try regenerating this assessment or create a new one.</p>
-<div>
-<button id="regenerateBtn" class="btn btn-secondary" onclick="regenerateReport()">🔄 Try Regenerate</button>
-<a href="/dashboard" class="btn">Back to Dashboard</a>
-</div>
-<div id="status"></div>
-</div>
-<script>
-async function regenerateReport() {{
-  const btn = document.getElementById('regenerateBtn');
-  const status = document.getElementById('status');
-  
-  btn.disabled = true;
-  btn.textContent = '⏳ Regenerating...';
-  status.className = 'status-loading';
-  status.style.display = 'block';
-  status.textContent = 'Attempting to regenerate interactive report...';
-  
-  try {{
-    const response = await fetch('/reports/{assessment.id}/regenerate', {{
-      method: 'POST',
-      headers: {{
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (new URLSearchParams(window.location.search)).get('token')
-      }}
-    }});
-    
-    if (response.ok) {{
-      status.className = 'status-success';
-      status.textContent = '✓ Report regenerated successfully! Reloading...';
-      setTimeout(() => window.location.reload(), 1500);
-    }} else {{
-      const error = await response.json();
-      throw new Error(error.detail || 'Regeneration failed');
-    }}
-  }} catch (err) {{
-    status.className = 'status-error';
-    status.textContent = '✗ ' + err.message;
-    btn.disabled = false;
-    btn.textContent = '🔄 Try Regenerate';
-  }}
-}}
-</script>
-</div>
-</body>
-</html>"""
-    
-    return HTMLResponse(content=fallback_html)
+            logger.warning(f"On-the-fly generation failed: {e}")
+
+    raise HTTPException(status_code=503, detail="Interactive report unavailable. Please regenerate the assessment.")
 
 
 @app.get("/reports/{assessment_id}/structured")
@@ -1465,101 +874,6 @@ async def get_structured_data(
             assessment.report_html and assessment.report_html.strip().startswith("<!DOCTYPE html")
         ),
     }
-
-
-@app.post("/reports/{assessment_id}/regenerate")
-async def regenerate_interactive_report(
-    assessment_id: int,
-    user: User = Depends(get_current_user_from_token),
-    db: Session = Depends(get_db)
-):
-    """Force regenerate the interactive report (clears cache and retries)."""
-    assessment = db.query(ThreatAssessment).filter(
-        ThreatAssessment.id == assessment_id,
-        ThreatAssessment.organization_id == user.organization_id
-    ).first()
-    if not assessment:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    
-    if not assessment.assessment_report:
-        raise HTTPException(status_code=400, detail="No assessment data to regenerate from")
-    
-    logger.info(f"Force regenerating interactive report for assessment {assessment_id}")
-    
-    # Clear cached data
-    assessment.report_html = None
-    meta = assessment.report_meta or {}
-    if "structured" in meta:
-        del meta["structured"]
-    assessment.report_meta = meta
-    db.commit()
-    
-    # Try to regenerate
-    try:
-        report_data = assessment.assessment_report
-        data_type = type(report_data).__name__
-        
-        logger.info(f"Regenerate: assessment_report type = {data_type}")
-        if isinstance(report_data, str):
-            logger.info(f"Regenerate: String data, length = {len(report_data)}, preview = {report_data[:200]}")
-        elif isinstance(report_data, dict):
-            logger.info(f"Regenerate: Dict data, keys = {list(report_data.keys())}, has all_findings = {bool(report_data.get('all_findings'))}")
-        
-        # Try JSON first
-        if isinstance(report_data, dict):
-            try:
-                logger.info("Regenerate: Attempting dict/JSON path")
-                normalized = _normalize_structured_data(report_data)
-                if not normalized.get("project_name"):
-                    normalized["project_name"] = assessment.project_name
-                if not normalized.get("frameworks_used"):
-                    normalized["frameworks_used"] = [assessment.framework]
-                
-                logger.info(f"Regenerate: Normalized data has {len(normalized.get('all_findings', []))} findings")
-                html_content = generate_html(normalized, assessment.project_name)
-                logger.info(f"Regenerate: Generated HTML, length = {len(html_content)}")
-                
-                assessment.report_html = html_content
-                meta["structured"] = normalized
-                meta["has_interactive_report"] = True
-                assessment.report_meta = meta
-                db.commit()
-                logger.info("Regenerate: ✓ Successfully regenerated from dict")
-                return {"success": True, "message": "Interactive report regenerated successfully"}
-            except Exception as dict_error:
-                logger.error(f"Regenerate: Dict path failed: {dict_error}", exc_info=True)
-                raise
-        
-        # Try markdown
-        elif isinstance(report_data, str):
-            try:
-                logger.info("Regenerate: Attempting string/markdown path")
-                structured_data, _, html_content = _parse_and_generate(
-                    raw_report=report_data,
-                    project_name=assessment.project_name,
-                    frameworks=meta.get("frameworks", [assessment.framework]),
-                    risk_focus_areas=meta.get("risk_areas", []),
-                )
-                if html_content:
-                    logger.info(f"Regenerate: Generated HTML from markdown, length = {len(html_content)}")
-                    assessment.report_html = html_content
-                    meta["structured"] = structured_data
-                    meta["has_interactive_report"] = True
-                    assessment.report_meta = meta
-                    db.commit()
-                    logger.info("Regenerate: ✓ Successfully regenerated from markdown")
-                    return {"success": True, "message": "Interactive report regenerated successfully"}
-                else:
-                    raise Exception("parse_and_generate returned no HTML")
-            except Exception as str_error:
-                logger.error(f"Regenerate: String path failed: {str_error}", exc_info=True)
-                raise
-        
-        raise Exception(f"Could not regenerate report: unsupported data type '{data_type}'")
-        
-    except Exception as e:
-        logger.error(f"Regeneration failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to regenerate report: {str(e)}")
 
 
 @app.post("/reports/{assessment_id}/action-plan")

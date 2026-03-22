@@ -24,31 +24,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Try to import enhancements, but don't fail if they're not available
-try:
-    from report_enhancements import (
-        generate_attack_paths,
-        generate_attack_path_svg,
-        generate_mitre_heatmap,
-        ADDITIONAL_CSS
-    )
-    ENHANCEMENTS_AVAILABLE = True
-    logger.info("✓ Report enhancements loaded successfully")
-except Exception as e:
-    logger.warning(f"⚠️ Report enhancements not available: {e}")
-    ENHANCEMENTS_AVAILABLE = False
-    ADDITIONAL_CSS = ""
-    
-    # Provide fallback functions
-    def generate_attack_paths(findings, kill_chains):
-        return []
-    
-    def generate_attack_path_svg(nodes):
-        return ""
-    
-    def generate_mitre_heatmap(findings, framework):
-        return ""
-
 
 # ─── SEVERITY HELPERS ─────────────────────────────────────────────────────────
 
@@ -352,9 +327,6 @@ tr.tr-planned td{background:#f0fdf4 !important}
 @media(max-width:700px){.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{grid-template-columns:1fr}}
 """
 
-# Append additional CSS from report_enhancements module
-CSS = CSS + ADDITIONAL_CSS
-
 
 # ─── JAVASCRIPT ───────────────────────────────────────────────────────────────
 
@@ -381,25 +353,17 @@ const META = {{
   assessment_date: "{assessment_date}"
 }};
 
-// ── UTILITY: HTML ESCAPE ──
-function esc(s){{const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}}
-
 // ── INIT ──
 document.addEventListener('DOMContentLoaded', () => {{
-  try{{
-    buildFindings();
-    buildRecs();
-    buildKillChain();
-    renderDomainBars();
-    initScroll();
-    initBars();
-    initTooltips();
-    renderActionPlan();
-    setTimeout(()=>document.querySelectorAll('#overview [data-w]').forEach(b=>{{b.style.width=b.dataset.w+'%';}}), 400);
-  }}catch(err){{
-    console.error('Interactive report initialization error:', err);
-    alert('Report initialization failed. Please refresh the page.');
-  }}
+  buildFindings();
+  buildRecs();
+  buildKillChain();
+  renderDomainBars();
+  initScroll();
+  initBars();
+  initTooltips();
+  renderActionPlan();
+  setTimeout(()=>document.querySelectorAll('#overview [data-w]').forEach(b=>{{b.style.width=b.dataset.w+'%';}}), 400);
 }});
 
 // ── SEVERITY HELPERS ──
@@ -409,33 +373,28 @@ const PBC={{P0:'p0',P1:'p1',P2:'p2'}};
 
 // ── BUILD FINDINGS TABLE ──
 function buildFindings(){{
-  try{{
-    const tb=document.getElementById('ftbody');
-    if(!tb){{console.error('Findings table body not found');return;}}
-    if(!FD || !FD.length){{console.warn('No findings data');return;}}
-    FD.forEach(f=>{{
-      const sc=f.L??f.likelihood??3,si=f.I??f.impact??3,score=f.risk_score||(sc*si);
-      const sc2=SC[f.severity]||'m';
-      const tl=f.timeline||'';
-      const tl2=tl.includes('0–30')||tl.includes('0-30')?'c':tl.includes('30–90')||tl.includes('30-90')?'h':'m';
-      const tr=document.createElement('tr');tr.className='fr';tr.id=`row-${{f.id}}`;
-      tr.dataset.sev=f.severity;tr.dataset.s=`${{f.id}} ${{f.title}} ${{f.tactic||''}} ${{f.technique_id||''}} ${{f.owner||''}}`.toLowerCase();
-      tr.innerHTML=`
-        <td><span class="fid">${{f.id}}</span></td>
-        <td style="max-width:220px"><div class="ftitle">${{esc(f.title)}}</div><div class="fdoc">${{esc((f.doc_source||'').split(' — ')[0])}}</div></td>
-        <td><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2)">${{esc(f.tactic||'')}}</span></td>
-        <td><span class="tag">${{esc(f.technique_id||'—')}}</span></td>
-        <td><span class="pill ${{sc2}}">${{f.severity}}</span></td>
-        <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--${{sc2==='c'?'c':sc2==='h'?'h':'m'}})">${{sc}}×${{si}}=${{score}}</span></td>
-        <td style="font-size:12px;color:var(--t2);font-weight:500">${{esc(f.owner||'')}}</td>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--${{tl2}})">${{esc(tl)}}</td>
-        <td onclick="event.stopPropagation()"><button class="ap-btn" id="apbtn-${{f.id}}" onclick="toggleAP('${{f.id}}')">+ Add to Plan</button></td>`;
-      tr.onclick=()=>openModal(f);
-      tb.appendChild(tr);
-    }});
-  }}catch(err){{
-    console.error('Error building findings table:', err);
-  }}
+  const tb=document.getElementById('ftbody');
+  if(!tb)return;
+  FD.forEach(f=>{{
+    const sc=f.L??f.likelihood??3,si=f.I??f.impact??3,score=f.risk_score||(sc*si);
+    const sc2=SC[f.severity]||'m';
+    const tl=f.timeline||'';
+    const tl2=tl.includes('0–30')||tl.includes('0-30')?'c':tl.includes('30–90')||tl.includes('30-90')?'h':'m';
+    const tr=document.createElement('tr');tr.className='fr';tr.id=`row-${{f.id}}`;
+    tr.dataset.sev=f.severity;tr.dataset.s=`${{f.id}} ${{f.title}} ${{f.tactic||''}} ${{f.technique_id||''}} ${{f.owner||''}}`.toLowerCase();
+    tr.innerHTML=`
+      <td><span class="fid">${{f.id}}</span></td>
+      <td style="max-width:220px"><div class="ftitle">${{esc(f.title)}}</div><div class="fdoc">${{esc((f.doc_source||'').split(' — ')[0])}}</div></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2)">${{esc(f.tactic||'')}}</span></td>
+      <td><span class="tag">${{esc(f.technique_id||'—')}}</span></td>
+      <td><span class="pill ${{sc2}}">${{f.severity}}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;color:var(--${{sc2==='c'?'c':sc2==='h'?'h':'m'}})">${{sc}}×${{si}}=${{score}}</span></td>
+      <td style="font-size:12px;color:var(--t2);font-weight:500">${{esc(f.owner||'')}}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--${{tl2}})">${{esc(tl)}}</td>
+      <td onclick="event.stopPropagation()"><button class="ap-btn" id="apbtn-${{f.id}}" onclick="toggleAP('${{f.id}}')">+ Add to Plan</button></td>`;
+    tr.onclick=()=>openModal(f);
+    tb.appendChild(tr);
+  }});
 }}
 
 // ── FILTER / SORT ──
@@ -651,51 +610,27 @@ function buildKillChain(){{
 // ── MODAL ──
 let _mfid=null;
 function openModal(f){{
-  try{{
-    if(!f){{console.error('No finding provided to openModal');return;}}
-    _mfid=f.id;
-    const sc=(f.L??f.likelihood??3)*(f.I??f.impact??3);
-    const sc2=SC[f.severity]||'m';
-    const mId=document.getElementById('mId');
-    const mPill=document.getElementById('mPill');
-    const mTitle=document.getElementById('mTitle');
-    const mTech=document.getElementById('mTech');
-    const mEv=document.getElementById('mEv');
-    const mL=document.getElementById('mL');
-    const mI=document.getElementById('mI');
-    const mSc=document.getElementById('mSc');
-    const mPr=document.getElementById('mPr');
-    const mOw=document.getElementById('mOw');
-    const mTi=document.getElementById('mTi');
-    const mBi=document.getElementById('mBi');
-    const mSt=document.getElementById('mSt');
-    const mOverlay=document.getElementById('mOverlay');
-    
-    if(mId)mId.textContent=f.id;
-    if(mPill){{mPill.textContent=f.severity;mPill.className=`pill ${{sc2}}`;}}
-    if(mTitle)mTitle.textContent=f.title;
-    if(mTech)mTech.textContent=`${{f.tactic||''}} · ${{f.technique_id||''}} · ${{f.doc_source||''}}`;
-    if(mEv)mEv.textContent=f.verbatim_evidence||f.doc_source||'No direct evidence recorded';
-    if(mL)mL.textContent=`${{f.L??f.likelihood??3}} / 5`;
-    if(mI)mI.textContent=`${{f.I??f.impact??3}} / 5`;
-    if(mSc)mSc.innerHTML=`<strong style="color:var(--${{sc2}})">${{sc}} / 25</strong>`;
-    if(mPr)mPr.textContent=f.priority||'P1';
-    if(mOw)mOw.textContent=f.owner||'';
-    if(mTi)mTi.innerHTML=`<span style="color:var(--${{(f.timeline||'').includes('0')?'c':'h'}})">${{esc(f.timeline||'')}}</span>`;
-    if(mBi)mBi.textContent=f.business_impact||'';
-    if(mSt)mSt.innerHTML=(f.mitigation_steps||[]).map((s,i)=>`<li data-n="${{i+1}}">${{esc(s)}}</li>`).join('');
-    
-    const inPlan=actionPlan.has(f.id);
-    const mb=document.getElementById('mApBtn');
-    if(mb){{
-      mb.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';
-      mb.className=`ap-btn${{inPlan?' in-plan':''}}`;
-    }}
-    if(mOverlay)mOverlay.classList.add('open');
-  }}catch(err){{
-    console.error('Error opening modal:', err, f);
-    alert('Error opening finding details. Check console for details.');
-  }}
+  _mfid=f.id;
+  const sc=(f.L??f.likelihood??3)*(f.I??f.impact??3);
+  const sc2=SC[f.severity]||'m';
+  document.getElementById('mId').textContent=f.id;
+  const p=document.getElementById('mPill');p.textContent=f.severity;p.className=`pill ${{sc2}}`;
+  document.getElementById('mTitle').textContent=f.title;
+  document.getElementById('mTech').textContent=`${{f.tactic||''}} · ${{f.technique_id||''}} · ${{f.doc_source||''}}`;
+  document.getElementById('mEv').textContent=f.verbatim_evidence||f.doc_source||'No direct evidence recorded';
+  document.getElementById('mL').textContent=`${{f.L??f.likelihood??3}} / 5`;
+  document.getElementById('mI').textContent=`${{f.I??f.impact??3}} / 5`;
+  document.getElementById('mSc').innerHTML=`<strong style="color:var(--${{sc2}})">${{sc}} / 25</strong>`;
+  document.getElementById('mPr').textContent=f.priority||'P1';
+  document.getElementById('mOw').textContent=f.owner||'';
+  document.getElementById('mTi').innerHTML=`<span style="color:var(--${{(f.timeline||'').includes('0')?'c':'h'}})">${{esc(f.timeline||'')}}</span>`;
+  document.getElementById('mBi').textContent=f.business_impact||'';
+  document.getElementById('mSt').innerHTML=(f.mitigation_steps||[]).map((s,i)=>`<li data-n="${{i+1}}">${{esc(s)}}</li>`).join('');
+  const inPlan=actionPlan.has(f.id);
+  const mb=document.getElementById('mApBtn');
+  mb.textContent=inPlan?'✓ In Action Plan':'+ Add to Action Plan';
+  mb.className=`ap-btn${{inPlan?' in-plan':''}}`;
+  document.getElementById('mOverlay').classList.add('open');
 }}
 function closeM(e){{if(e.target===document.getElementById('mOverlay'))document.getElementById('mOverlay').classList.remove('open');}}
 
@@ -731,46 +666,28 @@ function renderDomainBars(){{
 
 // ── NODE TOOLTIPS ──
 function initTooltips(){{
-  try{{
-    const tt=document.getElementById('nodeTip');
-    if(!tt){{console.warn('Node tooltip element not found');return;}}
-    const nodes=document.querySelectorAll('.ap-node');
-    if(!nodes.length){{console.info('No attack path nodes found');return;}}
-    nodes.forEach(n=>{{
-      n.addEventListener('mouseenter',()=>{{
-        try{{
-          document.getElementById('ntT').textContent=n.dataset.title||'';
-          const sv=document.getElementById('ntS');
-          if(sv){{
-            sv.textContent=n.dataset.sev||'';
-            sv.style.color=n.dataset.sev==='CRITICAL'?'var(--c)':n.dataset.sev==='HIGH'?'var(--h)':'var(--t2)';
-          }}
-          document.getElementById('ntD').textContent=n.dataset.doc||'';
-          document.getElementById('ntE').textContent=n.dataset.evidence||'';
-          document.getElementById('ntI').textContent=n.dataset.impact||'';
-          document.getElementById('ntR').textContent=n.dataset.ref||'';
-          tt.classList.add('vis');
-        }}catch(err){{console.error('Tooltip mouseenter error:',err);}}
-      }});
-      n.addEventListener('mousemove',e=>{{
-        const x=e.clientX+14,y=e.clientY-14;
-        tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-28:x)+'px';
-        tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
-      }});
-      n.addEventListener('mouseleave',()=>tt.classList.remove('vis'));
-      n.addEventListener('click',()=>{{
-        try{{
-          if(n.dataset.ref){{
-            const f=FD.find(x=>x.technique_id===n.dataset.ref||x.id===n.dataset.ref);
-            if(f){{tt.classList.remove('vis');openModal(f);}}
-            else{{console.warn('Finding not found for ref:',n.dataset.ref);}}
-          }}
-        }}catch(err){{console.error('Node click error:',err);}}
-      }});
+  const tt=document.getElementById('nodeTip');if(!tt)return;
+  document.querySelectorAll('.ap-node').forEach(n=>{{
+    n.addEventListener('mouseenter',()=>{{
+      document.getElementById('ntT').textContent=n.dataset.title||'';
+      const sv=document.getElementById('ntS');sv.textContent=n.dataset.sev||'';
+      sv.style.color=n.dataset.sev==='CRITICAL'?'var(--c)':n.dataset.sev==='HIGH'?'var(--h)':'var(--t2)';
+      document.getElementById('ntD').textContent=n.dataset.doc||'';
+      document.getElementById('ntE').textContent=n.dataset.evidence||'';
+      document.getElementById('ntI').textContent=n.dataset.impact||'';
+      document.getElementById('ntR').textContent=n.dataset.ref||'';
+      tt.classList.add('vis');
     }});
-  }}catch(err){{
-    console.error('Error initializing tooltips:', err);
-  }}
+    n.addEventListener('mousemove',e=>{{
+      const x=e.clientX+14,y=e.clientY-14;
+      tt.style.left=(x+tt.offsetWidth>window.innerWidth?x-tt.offsetWidth-28:x)+'px';
+      tt.style.top=(y+tt.offsetHeight>window.innerHeight?y-tt.offsetHeight:y)+'px';
+    }});
+    n.addEventListener('mouseleave',()=>tt.classList.remove('vis'));
+    n.addEventListener('click',()=>{{
+      if(n.dataset.ref){{const f=FD.find(x=>x.technique_id===n.dataset.ref||x.id===n.dataset.ref);if(f){{tt.classList.remove('vis');openModal(f);}}}}
+    }});
+  }});
 }}
 
 // ── ACTION PLAN ──
@@ -938,6 +855,7 @@ async function exportPDF(){{
   finally{{btn.innerHTML='⬇ Export Action Plan as PDF';btn.disabled=false;}}
 }}
 function printPlan(){{window.print();}}
+function esc(s){{const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}}
 """
 
 
@@ -999,31 +917,18 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
     Returns:
         Complete HTML string ready to serve or store
     """
-    try:
-        if project_name:
-            data["project_name"] = project_name
+    if project_name:
+        data["project_name"] = project_name
 
-        overall = data.get("overall_risk_rating", "HIGH")
-        overall_cls = _sev_cls(overall)
-        findings = data.get("all_findings", [])
-        recs = data.get("all_recommendations", [])
-        sev = data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0})
-        fw = data.get("frameworks_used", ["MITRE ATT&CK"])
-        ra = data.get("risk_areas_assessed", [])
-        adate = data.get("assessment_date", "")
-        pname = html.escape(data.get("project_name", project_name or "Project"))
-        
-        logger.info(f"Generating interactive HTML for '{pname}' with {len(findings)} findings")
-        logger.info(f"Findings by severity: CRITICAL={sev.get('CRITICAL', 0)}, HIGH={sev.get('HIGH', 0)}, MEDIUM={sev.get('MEDIUM', 0)}, LOW={sev.get('LOW', 0)}")
-        
-        if len(findings) == 0:
-            logger.warning(f"⚠️ WARNING: No findings in data.all_findings array!")
-            logger.warning(f"Data keys: {list(data.keys())}")
-            logger.warning(f"Findings by severity shows: {sev}")
-            logger.warning(f"This indicates a data mismatch - counts exist but findings array is empty")
-    except Exception as e:
-        logger.error(f"Error extracting data from structured report: {e}")
-        raise
+    overall = data.get("overall_risk_rating", "HIGH")
+    overall_cls = _sev_cls(overall)
+    findings = data.get("all_findings", [])
+    recs = data.get("all_recommendations", [])
+    sev = data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0})
+    fw = data.get("frameworks_used", ["MITRE ATT&CK"])
+    ra = data.get("risk_areas_assessed", [])
+    adate = data.get("assessment_date", "")
+    pname = html.escape(data.get("project_name", project_name or "Project"))
 
     domains = _compute_domains(data)
     domain_cards_html = "".join(_domain_card(d[0], d[1], d[2], d[3]) for d in domains)
@@ -1060,24 +965,6 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
           <td><span class="pill {sc2}">{html.escape(tl)}</span></td>
         </tr>"""
 
-    # Generate attack paths and MITRE heatmap
-    try:
-        attack_scenarios = generate_attack_paths(findings, kcs)
-        logger.info(f"Generated {len(attack_scenarios)} attack scenarios")
-    except Exception as e:
-        logger.error(f"Error generating attack paths: {e}")
-        attack_scenarios = []
-    
-    mitre_heatmap_html = ""
-    try:
-        if "MITRE" in str(fw) or "MITRE ATT&CK" in str(fw):
-            framework_str = ', '.join(fw) if isinstance(fw, list) else str(fw)
-            mitre_heatmap_html = generate_mitre_heatmap(findings, framework_str)
-            logger.info(f"Generated MITRE heatmap: {len(mitre_heatmap_html)} chars")
-    except Exception as e:
-        logger.error(f"Error generating MITRE heatmap: {e}")
-        mitre_heatmap_html = ""
-
     js_code = _build_js(data)
 
     return f"""<!DOCTYPE html>
@@ -1110,8 +997,6 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   </div>
   <div class="nav-sec">Report Sections</div>
   <a class="nav-item active" href="#overview"><span class="nav-icon">📋</span>Overview<span class="nav-cnt c">{findings_count}</span></a>
-  {"<a class='nav-item' href='#mitre-coverage'><span class='nav-icon'>🎯</span>MITRE Coverage</a>" if "MITRE" in fw or "MITRE ATT&CK" in fw else ""}
-  <a class="nav-item" href="#attack-paths"><span class="nav-icon">🔗</span>Attack Scenarios</a>
   <a class="nav-item" href="#findings"><span class="nav-icon">🔍</span>All Findings<span class="nav-cnt c">{findings_count}</span></a>
   <a class="nav-item" href="#kill-chain"><span class="nav-icon" id="nav-sec03-icon">⛓</span><span id="nav-sec03-label">Threat Phases</span></a>
   <a class="nav-item" href="#matrix"><span class="nav-icon">📊</span>Risk Matrix</a>
@@ -1161,49 +1046,10 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   <div class="domains-grid">{domain_cards_html}</div>
 </section>
 
-{mitre_heatmap_html}
-
-<!-- ATTACK SCENARIOS -->
-<section class="sec" id="attack-paths">
-  <div class="sec-h">
-    <span class="sec-num">{"03" if not mitre_heatmap_html else "03"}</span>
-    <div>
-      <div class="sec-title">🔗 Attack Scenarios &amp; Exploit Chains</div>
-      <div class="sec-sub">Evidence-based attack paths showing how vulnerabilities can be chained · Click nodes for details</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-hdr">
-      <div><div class="card-title">Critical Attack Scenarios</div><div class="card-sub">Synthesized from {len(attack_scenarios)} identified threat vectors</div></div>
-    </div>
-    <div class="card-body">
-      {"".join([f'''
-      <div class="ap-scenario">
-        <div class="ap-scenario-header">
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:3px">{html.escape(scenario["title"])}</div>
-            <div style="font-size:11px;color:var(--t2)">{html.escape(scenario.get("description", scenario.get("subtitle", "")))}</div>
-          </div>
-          <span class="pill {_sev_cls(scenario["severity"])}">{scenario["severity"]}</span>
-        </div>
-        <div class="ap-legend">
-          <div class="ap-legend-item"><span class="ap-legend-box ap-crit"></span>Critical Node</div>
-          <div class="ap-legend-item"><span class="ap-legend-box ap-high"></span>High Risk</div>
-          <div class="ap-legend-item"><span class="ap-legend-box ap-med"></span>Medium Risk</div>
-          <div class="ap-legend-item"><span class="ap-legend-box ap-pivot"></span>Pivot Point</div>
-        </div>
-        {generate_attack_path_svg(scenario)}
-      </div>
-      ''' for scenario in attack_scenarios])}
-      {f'<div class="alert" style="margin-top:20px"><div class="alert-icon">ℹ️</div><div><div class="alert-title">No Attack Scenarios Generated</div><div class="alert-desc">Attack paths are synthesized when sufficient findings are present. Continue assessment to generate scenarios.</div></div></div>' if not attack_scenarios else ''}
-    </div>
-  </div>
-</section>
-
 <!-- FINDINGS -->
 <section class="sec" id="findings">
   <div class="sec-h">
-    <span class="sec-num">{"04" if mitre_heatmap_html else "03"}</span>
+    <span class="sec-num">02</span>
     <div>
       <div class="sec-title">All Findings — {findings_count} Total</div>
       <div class="sec-sub">Click any row to open full detail · Sort by column · Filter by severity · Add to Action Plan</div>
@@ -1235,7 +1081,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- KILL CHAIN / THREAT PHASES — title updated dynamically per framework -->
 <section class="sec" id="kill-chain">
   <div class="sec-h">
-    <span class="sec-num">{"05" if mitre_heatmap_html else "04"}</span>
+    <span class="sec-num">03</span>
     <div>
       <div class="sec-title"><span id="sec03-icon">⛓ </span><span id="sec03-title">Threat Phase Analysis</span></div>
       <div class="sec-sub" id="sec03-sub">Attack scenario phases — sourced from document evidence · Updated per selected framework</div>
@@ -1255,7 +1101,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- RISK MATRIX -->
 <section class="sec" id="matrix">
   <div class="sec-h">
-    <span class="sec-num">{"06" if mitre_heatmap_html else "05"}</span>
+    <span class="sec-num">04</span>
     <div>
       <div class="sec-title">Risk Priority Matrix</div>
       <div class="sec-sub">Likelihood × Impact · Critical = 16–25 · High = 9–15 · Medium = 6–11</div>
@@ -1288,7 +1134,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- RECOMMENDATIONS -->
 <section class="sec" id="recommendations">
   <div class="sec-h">
-    <span class="sec-num">{"07" if mitre_heatmap_html else "06"}</span>
+    <span class="sec-num">05</span>
     <div>
       <div class="sec-title">Prioritized Recommendations — {total_recs} Total</div>
       <div class="sec-sub">P0: {p0_recs} critical (0–30 days) · P1: {p1_recs} high (30–90 days) · P2: {p2_recs} medium (90–180 days)</div>
@@ -1307,7 +1153,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- COMPLIANCE -->
 <section class="sec" id="compliance">
   <div class="sec-h">
-    <span class="sec-num">{"08" if mitre_heatmap_html else "07"}</span>
+    <span class="sec-num">06</span>
     <div>
       <div class="sec-title">Key Findings Summary</div>
       <div class="sec-sub">Top findings with business impact and remediation timeline</div>
@@ -1324,7 +1170,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- ACTION PLAN -->
 <section class="sec" id="action-plan" style="background:var(--white)">
   <div class="sec-h">
-    <span class="sec-num">{"09" if mitre_heatmap_html else "08"}</span>
+    <span class="sec-num">07</span>
     <div>
       <div class="sec-title">Action Plan</div>
       <div class="sec-sub">Select findings using "+ Add to Plan" · Assign owners &amp; due dates · Track status · Export as PDF</div>
