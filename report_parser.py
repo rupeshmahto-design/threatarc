@@ -85,134 +85,149 @@ def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
     """
     findings = []
     
-    # Split into lines and find table rows containing F001, F002, etc.
-    lines = markdown.split('\n')
-    header_columns = []
-    
-    for i, line in enumerate(lines):
-        # Try to identify header row first (case-insensitive)
-        if '|' in line and i < len(lines) - 1:
-            lower_line = line.lower()
-            if any(keyword in lower_line for keyword in ['finding', 'title', 'severity', 'risk']):
-                # This might be a header row
-                header_columns = [col.strip().lower() for col in line.split('|')]
-                logger.info(f"Found table header: {header_columns}")
+    try:
+        # Split into lines and find table rows containing F001, F002, etc.
+        lines = markdown.split('\n')
+        header_columns = []
         
-        # Look for finding rows (contains F followed by digits)
-        if '|' in line and re.search(r'F\d{2,4}', line):
-            columns = [col.strip() for col in line.split('|')]
+        for i, line in enumerate(lines):
+            # Try to identify header row first (case-insensitive)
+            if '|' in line and i < len(lines) - 1:
+                lower_line = line.lower()
+                if any(keyword in lower_line for keyword in ['finding', 'title', 'severity', 'risk']):
+                    # This might be a header row
+                    header_columns = [col.strip().lower() for col in line.split('|')]
+                    logger.info(f"Found table header: {header_columns}")
             
-            # Find which column has the Finding ID
-            finding_id = None
-            finding_id_idx = -1
-            for idx, col in enumerate(columns):
-                match = re.match(r'(F\d{2,4})', col)
-                if match:
-                    finding_id = match.group(1)
-                    finding_id_idx = idx
-                    break
-            
-            if not finding_id:
-                continue
-            
-            # Extract other fields - try to be smart about column positions
-            title = ""
-            severity = "MEDIUM"
-            risk_score = 9
-            evidence_source = ""
-            business_impact = ""
-            action_required = ""
-            
-            # Try to use headers if we found them
-            if header_columns:
-                for idx, col in enumerate(columns):
-                    if idx < len(header_columns):
-                        header = header_columns[idx]
-                        col_value = col.strip()
-                        
-                        if 'title' in header or 'description' in header:
-                            title = col_value
-                        elif 'severity' in header or 'risk level' in header:
-                            severity = _extract_severity_from_text(col_value)
-                        elif 'risk score' in header or 'score' in header:
-                            try:
-                                # Handle formats like "25/25" or "9"
-                                risk_score = int(re.search(r'\d+', col_value).group())
-                            except:
-                                pass
-                        elif 'evidence' in header or 'source' in header:
-                            evidence_source = col_value
-                        elif 'business' in header or 'impact' in header:
-                            business_impact = col_value
-                        elif 'action' in header or 'mitigation' in header or 'remediation' in header:
-                            action_required = col_value
-            else:
-                # No headers - use positional logic based on common formats
-                # Common: | # | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
-                # or:     | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
-                if finding_id_idx >= 0 and len(columns) > finding_id_idx:
-                    # Title is typically after Finding ID
-                    if len(columns) > finding_id_idx + 1:
-                        title = columns[finding_id_idx + 1]
+            # Look for finding rows (contains F followed by digits)
+            if '|' in line and re.search(r'F\d{2,4}', line):
+                # Skip separator lines like |---|---|---|
+                if re.match(r'^\s*\|[\s\-:]+\|\s*$', line) or line.count('-') > 3:
+                    continue
+                
+                try:
+                    columns = [col.strip() for col in line.split('|')]
                     
-                    # Severity is typically 1-2 columns after title
-                    if len(columns) > finding_id_idx + 2:
-                        potential_sev = columns[finding_id_idx + 2]
-                        severity = _extract_severity_from_text(potential_sev)
+                    # Find which column has the Finding ID
+                    finding_id = None
+                    finding_id_idx = -1
+                    for idx, col in enumerate(columns):
+                        match = re.match(r'(F\d{2,4})', col)
+                        if match:
+                            finding_id = match.group(1)
+                            finding_id_idx = idx
+                            break
                     
-                    # Risk score might be next
-                    if len(columns) > finding_id_idx + 3:
-                        try:
-                            risk_score_text = columns[finding_id_idx + 3]
-                            risk_score = int(re.search(r'\d+', risk_score_text).group())
-                        except:
-                            pass
+                    if not finding_id:
+                        continue
                     
-                    # Remaining columns for evidence, impact, action
-                    if len(columns) > finding_id_idx + 4:
-                        evidence_source = columns[finding_id_idx + 4]
-                    if len(columns) > finding_id_idx + 5:
-                        business_impact = columns[finding_id_idx + 5]
-                    if len(columns) > finding_id_idx + 6:
-                        action_required = columns[finding_id_idx + 6]
-            
-            # Calculate likelihood and impact from risk score
-            #risk_score (1-25): convert to likelihood * impact
-            if risk_score >= 20:
-                likelihood, impact = 5, 5
-            elif risk_score >= 15:
-                likelihood, impact = 4, 4
-            elif risk_score >= 9:
-                likelihood, impact = 3, 3
-            elif risk_score >= 4:
-                likelihood, impact = 2, 2
-            else:
-                likelihood, impact = 1, 1
-            
-            finding = {
-                "id": finding_id,
-                "title": title or f"Finding {finding_id}",
-                "description": title or business_impact or f"Security finding {finding_id}",
-                "severity": severity,
-                "likelihood": likelihood,
-                "impact": impact,
-                "risk_score": risk_score,
-                "priority": "P0" if severity == "CRITICAL" else "P1" if severity == "HIGH" else "P2",
-                "owner": "Security Team",
-                "timeline": "30–90 days" if severity in ["CRITICAL", "HIGH"] else "90+ days",
-                "tactic": "",
-                "technique_id": "",
-                "tactic_id": "",
-                "doc_source": evidence_source,
-                "verbatim_evidence": evidence_source,
-                "business_impact": business_impact,
-                "affected_systems": [],
-                "mitigation_steps": [action_required] if action_required else [],
-                "validation_method": "",
-                "references": [],
-            }
-            findings.append(finding)
-            logger.info(f"Extracted finding: {finding_id} - {title[:50]}")
+                    # Extract other fields - try to be smart about column positions
+                    title = ""
+                    severity = "MEDIUM"
+                    risk_score = 9
+                    evidence_source = ""
+                    business_impact = ""
+                    action_required = ""
+                    
+                    # Try to use headers if we found them
+                    if header_columns:
+                        for idx, col in enumerate(columns):
+                            if idx < len(header_columns):
+                                header = header_columns[idx]
+                                col_value = col.strip()
+                                
+                                if 'title' in header or 'description' in header:
+                                    title = col_value
+                                elif 'severity' in header or 'risk level' in header:
+                                    severity = _extract_severity_from_text(col_value)
+                                elif 'risk score' in header or 'score' in header:
+                                    try:
+                                        # Handle formats like "25/25" or "9"
+                                        risk_score = int(re.search(r'\d+', col_value).group())
+                                    except:
+                                        pass
+                                elif 'evidence' in header or 'source' in header:
+                                    evidence_source = col_value
+                                elif 'business' in header or 'impact' in header:
+                                    business_impact = col_value
+                                elif 'action' in header or 'mitigation' in header or 'remediation' in header:
+                                    action_required = col_value
+                    else:
+                        # No headers - use positional logic based on common formats
+                        # Common: | # | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
+                        # or:     | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
+                        if finding_id_idx >= 0 and len(columns) > finding_id_idx:
+                            # Title is typically after Finding ID
+                            if len(columns) > finding_id_idx + 1:
+                                title = columns[finding_id_idx + 1]
+                            
+                            # Severity is typically 1-2 columns after title
+                            if len(columns) > finding_id_idx + 2:
+                                potential_sev = columns[finding_id_idx + 2]
+                                severity = _extract_severity_from_text(potential_sev)
+                            
+                            # Risk score might be next
+                            if len(columns) > finding_id_idx + 3:
+                                try:
+                                    risk_score_text = columns[finding_id_idx + 3]
+                                    risk_score = int(re.search(r'\d+', risk_score_text).group())
+                                except:
+                                    pass
+                            
+                            # Remaining columns for evidence, impact, action
+                            if len(columns) > finding_id_idx + 4:
+                                evidence_source = columns[finding_id_idx + 4]
+                            if len(columns) > finding_id_idx + 5:
+                                business_impact = columns[finding_id_idx + 5]
+                            if len(columns) > finding_id_idx + 6:
+                                action_required = columns[finding_id_idx + 6]
+                    
+                    # Calculate likelihood and impact from risk score
+                    #risk_score (1-25): convert to likelihood * impact
+                    if risk_score >= 20:
+                        likelihood, impact = 5, 5
+                    elif risk_score >= 15:
+                        likelihood, impact = 4, 4
+                    elif risk_score >= 9:
+                        likelihood, impact = 3, 3
+                    elif risk_score >= 4:
+                        likelihood, impact = 2, 2
+                    else:
+                        likelihood, impact = 1, 1
+                    
+                    finding = {
+                        "id": finding_id,
+                        "title": title or f"Finding {finding_id}",
+                        "description": title or business_impact or f"Security finding {finding_id}",
+                        "severity": severity,
+                        "likelihood": likelihood,
+                        "impact": impact,
+                        "risk_score": risk_score,
+                        "priority": "P0" if severity == "CRITICAL" else "P1" if severity == "HIGH" else "P2",
+                        "owner": "Security Team",
+                        "timeline": "30–90 days" if severity in ["CRITICAL", "HIGH"] else "90+ days",
+                        "tactic": "",
+                        "technique_id": "",
+                        "tactic_id": "",
+                        "doc_source": evidence_source,
+                        "verbatim_evidence": evidence_source,
+                        "business_impact": business_impact,
+                        "affected_systems": [],
+                        "mitigation_steps": [action_required] if action_required else [],
+                        "validation_method": "",
+                        "references": [],
+                    }
+                    findings.append(finding)
+                    logger.info(f"Extracted finding: {finding_id} - {title[:50] if title else finding_id}")
+                    
+                except Exception as row_error:
+                    logger.warning(f"Error parsing table row: {row_error}")
+                    continue
+        
+        logger.info(f"Extracted {len(findings)} findings from markdown tables")
+        
+    except Exception as e:
+        logger.error(f"Error in _extract_findings_from_markdown: {e}", exc_info=True)
     
     return findings
 
