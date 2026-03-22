@@ -626,6 +626,62 @@ async def health_check(request: Request):
     }
 
 
+@app.get("/api/debug/assessment/{assessment_id}")
+async def debug_assessment(
+    assessment_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Debug endpoint to inspect assessment data"""
+    assessment = db.query(ThreatAssessment).filter(
+        ThreatAssessment.id == assessment_id,
+        ThreatAssessment.organization_id == user.organization_id
+    ).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    
+    report_data = assessment.assessment_report
+    report_preview = None
+    report_type = None
+    report_length = None
+    
+    if report_data:
+        report_type = type(report_data).__name__
+        if isinstance(report_data, str):
+            report_length = len(report_data)
+            report_preview = report_data[:500]
+        elif isinstance(report_data, dict):
+            import json
+            report_str = json.dumps(report_data)
+            report_length = len(report_str)
+            report_preview = report_str[:500]
+    
+    meta = assessment.report_meta or {}
+    
+    return {
+        "id": assessment.id,
+        "project_name": assessment.project_name,
+        "framework": assessment.framework,
+        "status": assessment.status,
+        "has_report_html": bool(assessment.report_html),
+        "report_html_length": len(assessment.report_html) if assessment.report_html else 0,
+        "has_assessment_report": bool(assessment.assessment_report),
+        "assessment_report_type": report_type,
+        "assessment_report_length": report_length,
+        "assessment_report_preview": report_preview,
+        "has_report_meta": bool(meta),
+        "report_meta_keys": list(meta.keys()) if isinstance(meta, dict) else None,
+        "has_structured": bool(meta.get("structured")) if isinstance(meta, dict) else False,
+        "structured_findings_count": len(meta.get("structured", {}).get("all_findings", [])) if isinstance(meta, dict) else 0,
+        "counts": {
+            "critical": assessment.critical_count,
+            "high": assessment.high_count,
+            "medium": assessment.medium_count,
+            "low": assessment.low_count,
+        }
+    }
+
+
 # ── Auth endpoints ───────────────────────────────────────────────────────────
 
 class UserRegister(BaseModel):
