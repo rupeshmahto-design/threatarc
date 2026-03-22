@@ -117,187 +117,117 @@ const ExecutiveSummary = ({
   const recs = data.all_recommendations || [];
   const fw = data.frameworks_used || [];
   const ra = data.risk_areas_assessed || [];
-
-  // Top 5 critical/high findings
-  const top5 = [...findings]
-    .sort((a,b) => b.risk_score - a.risk_score)
-    .slice(0, 5);
-
-  // Top 3 P0 recommendations
-  const top3Recs = recs.filter(r => r.priority === "P0").slice(0, 3);
-
-  // Risk score as percentage for the arc gauge
-  const maxScore = findings.length > 0
-    ? Math.max(...findings.map(f => f.risk_score))
-    : 0;
-
-  const riskLevel = {
-    CRITICAL: { label: "CRITICAL RISK", desc: "Immediate executive action required. Critical vulnerabilities present.", pct: 92 },
-    HIGH:     { label: "HIGH RISK",     desc: "Significant vulnerabilities require urgent attention within 30 days.", pct: 70 },
-    MEDIUM:   { label: "MEDIUM RISK",   desc: "Moderate vulnerabilities should be addressed within 90 days.", pct: 45 },
-    LOW:      { label: "LOW RISK",      desc: "Minor vulnerabilities present. Routine remediation recommended.", pct: 20 },
-  }[overall] || { label: "HIGH RISK", desc: "", pct: 70 };
-
-  const totalRisk = sev.CRITICAL * 25 + sev.HIGH * 15 + sev.MEDIUM * 8 + sev.LOW * 3;
+  const top5 = [...findings].sort((a,b)=>b.risk_score-a.risk_score).slice(0,5);
+  const top3Recs = recs.filter(r=>r.priority==="P0").slice(0,3);
+  const totalRisk = sev.CRITICAL*25 + sev.HIGH*15 + sev.MEDIUM*8 + sev.LOW*3;
   const maxPossible = findings.length * 25;
-  const riskPct = maxPossible > 0 ? Math.round((totalRisk / maxPossible) * 100) : 0;
+  const riskPct = maxPossible > 0 ? Math.round((totalRisk/maxPossible)*100) : 0;
+  const riskDesc = overall==="CRITICAL"?"Immediate executive action required. Critical vulnerabilities present significant business risk.":overall==="HIGH"?"Significant vulnerabilities require urgent attention within 30 days.":"Moderate risk identified. Address findings per the recommended timeline.";
 
   return (
-    <section id="exec-summary" style={{
-      background: "#fff",
-      borderRadius: 16,
-      border: "2px solid #1d4ed8",
-      overflow: "hidden",
-      boxShadow: "0 4px 24px rgba(29,78,216,.15)",
-      scrollMarginTop: 16,
-      minHeight: 200,
-    }}>
-      {/* Header band */}
-      <div style={{
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1d4ed8 100%)",
-        padding: "28px 32px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        flexWrap: "wrap",
-        gap: 16,
-      }}>
+    <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:16}}>
+      {/* Dark gradient header */}
+      <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#1d4ed8 100%)",padding:"28px 32px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
         <div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:2,fontWeight:600,marginBottom:8}}>
-            SECURITY EXECUTIVE BRIEFING · CONFIDENTIAL
-          </div>
-          <h1 style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,lineHeight:1.2,marginBottom:6}}>
-            Threat Assessment Report
-          </h1>
-          <div style={{fontSize:13,color:"rgba(255,255,255,.65)"}}>
-            {projectName} · {data.assessment_date}
-          </div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:2,fontWeight:600,marginBottom:8}}>SECURITY EXECUTIVE BRIEFING · CONFIDENTIAL</div>
+          <h1 style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,lineHeight:1.2,marginBottom:6}}>Threat Assessment Report</h1>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.65)"}}>{projectName} · {data.assessment_date}</div>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-          <div style={{
-            background: SEV_BG[overall],
-            border: `1px solid ${SEV_BORDER[overall]}`,
-            borderRadius: 12,
-            padding: "10px 20px",
-            textAlign: "center",
-          }}>
+          <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderRadius:12,padding:"10px 20px",textAlign:"center"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:SEV_COLOR[overall],textTransform:"uppercase",fontWeight:700,letterSpacing:1,marginBottom:4}}>Overall Rating</div>
-            <div style={{fontSize:24,fontWeight:900,color:SEV_COLOR[overall],letterSpacing:-0.5}}>{overall}</div>
+            <div style={{fontSize:24,fontWeight:900,color:SEV_COLOR[overall]}}>{overall}</div>
           </div>
-          <button
-            onClick={onPrint}
-            style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",backdropFilter:"blur(4px)"}}
-          >
-            🖨 Print One-Pager
-          </button>
+          <button onClick={onPrint} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🖨 Print One-Pager</button>
         </div>
       </div>
 
-      <div style={{padding:"28px 32px"}}>
-        {/* Key metrics row */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:12,marginBottom:28}}>
-          {[
-            {label:"Critical Findings", val:sev.CRITICAL||0, color:"#dc2626", bg:"#fef2f2", border:"#fecaca", icon:"🔴"},
-            {label:"High Findings",     val:sev.HIGH||0,     color:"#ea580c", bg:"#fff7ed", border:"#fed7aa", icon:"🟠"},
-            {label:"Medium Findings",   val:sev.MEDIUM||0,   color:"#d97706", bg:"#fffbeb", border:"#fde68a", icon:"🟡"},
-            {label:"Total Findings",    val:findings.length, color:"#475569", bg:"#f8f9fb", border:"#e2e8f0", icon:"📊"},
-            {label:"Immediate Actions", val:recs.filter(r=>r.priority==="P0").length, color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe", icon:"⚡"},
-            {label:"Risk Score",        val:`${riskPct}%`,   color:SEV_COLOR[overall], bg:SEV_BG[overall], border:SEV_BORDER[overall], icon:"📈"},
-          ].map(m => (
-            <div key={m.label} style={{
-              background: m.bg, border: `1px solid ${m.border}`,
-              borderRadius: 12, padding: "14px 16px",
-              display: "flex", flexDirection: "column", gap: 4,
-            }}>
-              <div style={{fontSize: 11}}>{m.icon}</div>
-              <div style={{fontSize:24,fontWeight:900,color:m.color,lineHeight:1,fontFamily:"'JetBrains Mono',monospace"}}>{m.val}</div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#64748b",textTransform:"uppercase",fontWeight:600,letterSpacing:0.3}}>{m.label}</div>
+      <div style={{padding:"24px 32px"}}>
+        {/* Risk banner */}
+        <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderLeft:`4px solid ${SEV_COLOR[overall]}`,borderRadius:10,padding:"12px 18px",display:"flex",gap:12,alignItems:"center",marginBottom:24}}>
+          <span style={{fontSize:20}}>{overall==="CRITICAL"?"🚨":overall==="HIGH"?"⚠️":"ℹ️"}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:800,color:SEV_COLOR[overall],marginBottom:2}}>{overall} RISK — {overall==="CRITICAL"?"Immediate action required":"Action required"}</div>
+            <div style={{fontSize:12,color:"#475569"}}>{riskDesc}</div>
+          </div>
+          <div style={{textAlign:"center",flexShrink:0,background:"#fff",border:`1px solid ${SEV_BORDER[overall]}`,borderRadius:10,padding:"8px 16px"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:28,fontWeight:900,color:SEV_COLOR[overall]}}>{riskPct}%</div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase"}}>Risk Score</div>
+          </div>
+        </div>
+
+        {/* 4 severity counters */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+          {([["CRITICAL","🔴"],["HIGH","🟠"],["MEDIUM","🟡"],["LOW","🟢"]] as const).map(([s,icon])=>(
+            <div key={s} style={{background:SEV_BG[s],border:`1px solid ${SEV_BORDER[s]}`,borderTop:`3px solid ${SEV_COLOR[s]}`,borderRadius:12,padding:"16px",textAlign:"center"}}>
+              <div style={{fontSize:28,fontWeight:900,color:SEV_COLOR[s],lineHeight:1,fontFamily:"'JetBrains Mono',monospace"}}>{sev[s]||0}</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:SEV_COLOR[s],textTransform:"uppercase",fontWeight:700,marginTop:4}}>{s}</div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:2}}>findings</div>
             </div>
           ))}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:28}}>
-          {/* Top 5 Findings */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:24}}>
+          {/* Top 5 findings */}
           <div>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
-              <span>🔍</span> Top {top5.length} Priority Findings
-            </div>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12}}>🔍 Top {top5.length} Priority Findings</div>
             <div style={{border:"1px solid #e2e8f0",borderRadius:10,overflow:"hidden"}}>
-              {top5.map((f, i) => (
-                <div key={f.id} style={{
-                  display:"flex", alignItems:"center", gap:10,
-                  padding:"10px 14px",
-                  borderBottom: i < top5.length-1 ? "1px solid #f1f5f9" : "none",
-                  background: i % 2 === 0 ? "#fff" : "#f8f9fb",
-                  borderLeft: `3px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`,
-                }}>
+              {top5.length===0?(
+                <div style={{padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:12}}>Run a new assessment to populate findings.</div>
+              ):top5.map((f,i)=>(
+                <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:i<top5.length-1?"1px solid #f1f5f9":"none",background:i%2===0?"#fff":"#f8f9fb",borderLeft:`3px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`}}>
                   <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb",fontWeight:700,flexShrink:0,minWidth:36}}>{f.id}</span>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.title}</div>
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:1}}>{f.tactic||"—"} · {f.technique_id||"—"}</div>
                   </div>
-                  <div style={{flexShrink:0,textAlign:"right"}}>
-                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:900,color:SEV_COLOR[f.severity]}}>{f.risk_score}</div>
-                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8"}}>/25</div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,color:SEV_COLOR[f.severity]}}>{f.risk_score}<span style={{fontSize:8,color:"#94a3b8"}}>/25</span></div>
+                    <Pill sev={f.severity}/>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Immediate Actions */}
-          <div>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12,display:"flex",alignItems:"center",gap:8}}>
-              <span>⚡</span> Immediate Actions Required (0–30 Days)
-            </div>
-            {top3Recs.length > 0 ? (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {top3Recs.map((r, i) => (
-                  <div key={r.id||i} style={{
-                    background: "#fef2f2", border: "1px solid #fecaca",
-                    borderRadius: 10, padding: "12px 14px",
-                    borderLeft: "4px solid #dc2626",
-                  }}>
-                    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-                      <div style={{
-                        width:20,height:20,borderRadius:"50%",
-                        background:"#dc2626",color:"#fff",
-                        display:"flex",alignItems:"center",justifyContent:"center",
-                        fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,
-                        flexShrink:0,marginTop:1,
-                      }}>{i+1}</div>
+          {/* Right column */}
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {/* Immediate actions */}
+            <div>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:10}}>⚡ Immediate Actions (0–30 Days)</div>
+              {top3Recs.length>0?(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {top3Recs.map((r,i)=>(
+                    <div key={r.id||i} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",borderLeft:"4px solid #dc2626",display:"flex",gap:10,alignItems:"flex-start"}}>
+                      <div style={{width:20,height:20,borderRadius:"50%",background:"#dc2626",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:900,flexShrink:0,marginTop:1}}>{i+1}</div>
                       <div>
-                        <div style={{fontSize:12,fontWeight:800,color:"#0f172a",marginBottom:3}}>{r.title}</div>
-                        {r.risk_reduction_pct && (
-                          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#16a34a",fontWeight:600}}>
-                            ↓ {r.risk_reduction_pct}% risk reduction · {r.effort_weeks||"?"}w effort · {r.owner||"—"}
-                          </div>
-                        )}
+                        <div style={{fontSize:11,fontWeight:800,color:"#0f172a",marginBottom:2}}>{r.title}</div>
+                        {r.risk_reduction_pct&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#16a34a",fontWeight:600}}>↓ {r.risk_reduction_pct}% risk · {r.effort_weeks||"?"}w · {r.owner||"—"}</div>}
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:12,background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
-                No P0 recommendations generated. Run a new assessment.
-              </div>
-            )}
-
-            {/* Risk breakdown */}
-            <div style={{marginTop:16,padding:"14px 16px",background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
+                  ))}
+                </div>
+              ):(
+                <div style={{padding:"12px 14px",background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:"#94a3b8"}}>No P0 recommendations in this report.</div>
+                  <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#64748b",marginTop:4}}>Run a new assessment to generate action items.</div>
+                </div>
+              )}
+            </div>
+            {/* Risk distribution */}
+            <div style={{padding:"14px 16px",background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Risk Distribution</div>
-              {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s => {
-                const count = sev[s] || 0;
-                const pct = findings.length > 0 ? Math.round(count/findings.length*100) : 0;
+              {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>{
+                const count=sev[s]||0;
+                const pct=findings.length>0?Math.round(count/findings.length*100):0;
                 return (
                   <div key={s} style={{marginBottom:7}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                       <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:SEV_COLOR[s]}}>{s}</span>
-                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8"}}>{count} findings ({pct}%)</span>
+                      <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8"}}>{count} ({pct}%)</span>
                     </div>
-                    <div style={{height:5,background:"#e2e8f0",borderRadius:3,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:SEV_COLOR[s],borderRadius:3,transition:"width 1s ease"}}/>
+                    <div style={{height:5,background:"#e2e8f0",borderRadius:3}}>
+                      <div style={{height:"100%",width:`${pct}%`,background:SEV_COLOR[s],borderRadius:3}}/>
                     </div>
                   </div>
                 );
@@ -306,45 +236,14 @@ const ExecutiveSummary = ({
           </div>
         </div>
 
-        {/* Assessment scope */}
-        <div style={{
-          background:"linear-gradient(135deg,#f8f9fb,#f1f5f9)",
-          border:"1px solid #e2e8f0",
-          borderRadius:12,
-          padding:"16px 20px",
-          display:"flex",gap:24,flexWrap:"wrap",
-        }}>
-          {[
-            ["Framework", fw.join(", ") || "—"],
-            ["Risk Areas Assessed", ra.length > 0 ? `${ra.length}: ${ra.slice(0,3).join(", ")}${ra.length>3?"…":""}` : "—"],
-            ["Assessment Date", data.assessment_date || "—"],
-            ["Classification", "CONFIDENTIAL"],
-            ["Generated By", "ThreatVision AI (Claude Sonnet)"],
-          ].map(([label, val]) => (
+        {/* Scope footer */}
+        <div style={{background:"linear-gradient(135deg,#f8f9fb,#f1f5f9)",border:"1px solid #e2e8f0",borderRadius:10,padding:"14px 20px",display:"flex",gap:24,flexWrap:"wrap",justifyContent:"space-between"}}>
+          {[["Framework",fw.join(", ")||"—"],["Risk Areas",ra.length>0?`${ra.length}: ${ra.slice(0,2).join(", ")}${ra.length>2?"…":""}` :"—"],["Total Findings",`${findings.length}`],["Assessment Date",data.assessment_date||"—"],["Classification","CONFIDENTIAL"],["Generated By","ThreatVision AI"]].map(([label,val])=>(
             <div key={label}>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:3}}>{label}</div>
               <div style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>{val}</div>
             </div>
           ))}
-        </div>
-
-        {/* Risk statement */}
-        <div style={{
-          marginTop:16,
-          padding:"14px 18px",
-          background: SEV_BG[overall],
-          border: `1px solid ${SEV_BORDER[overall]}`,
-          borderLeft: `4px solid ${SEV_COLOR[overall]}`,
-          borderRadius:10,
-          display:"flex",gap:12,alignItems:"center",
-        }}>
-          <span style={{fontSize:18}}>
-            {overall === "CRITICAL" ? "🚨" : overall === "HIGH" ? "⚠️" : "ℹ️"}
-          </span>
-          <div>
-            <div style={{fontSize:13,fontWeight:800,color:SEV_COLOR[overall],marginBottom:2}}>{riskLevel.label}</div>
-            <div style={{fontSize:12,color:"#475569"}}>{riskLevel.desc} {sev.CRITICAL > 0 && `${sev.CRITICAL} critical finding${sev.CRITICAL>1?"s require":"requires"} immediate remediation.`}</div>
-          </div>
         </div>
       </div>
     </section>
@@ -391,11 +290,37 @@ const OverviewSection = ({data,projectName}:{data:StructuredData;projectName:str
           </div>
         ))}
       </div>
-      <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderLeft:`4px solid ${SEV_COLOR[overall]}`,borderRadius:10,padding:"14px 18px",display:"flex",gap:12,alignItems:"flex-start"}}>
-        <span style={{fontSize:20}}>⚠️</span>
-        <div>
-          <div style={{fontSize:13,fontWeight:800,color:SEV_COLOR[overall],marginBottom:3}}>Overall Risk: {overall} — {overall==="CRITICAL"?"Immediate action required":"Review required"}</div>
-          <div style={{fontSize:12,color:"#475569"}}>Assessment completed for <strong>{projectName}</strong> using <strong>{fw.join(", ")}</strong>. {ra.length>0&&`${ra.length} risk area${ra.length>1?"s":""} assessed: ${ra.slice(0,4).join(", ")}${ra.length>4?"…":""}.`}</div>
+      {/* Tactic scorecards */}
+      <div style={{marginTop:8}}>
+        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12}}>Security Posture by Tactic</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}}>
+          {Object.entries(
+            (data.all_findings||[]).reduce((acc:{[k:string]:{worst:string;count:number}},f)=>{
+              const t=f.tactic||"General";
+              if(!acc[t]) acc[t]={worst:"LOW",count:0};
+              acc[t].count++;
+              if(f.severity==="CRITICAL") acc[t].worst="CRITICAL";
+              else if(f.severity==="HIGH" && acc[t].worst!=="CRITICAL") acc[t].worst="HIGH";
+              else if(f.severity==="MEDIUM" && !["CRITICAL","HIGH"].includes(acc[t].worst)) acc[t].worst="MEDIUM";
+              return acc;
+            },{})
+          ).slice(0,8).map(([tactic,info])=>{
+            const infoTyped = info as {worst:string;count:number};
+            const grade=infoTyped.worst==="CRITICAL"?"D":infoTyped.worst==="HIGH"?"C":infoTyped.worst==="MEDIUM"?"B":"A";
+            const gc=SEV_COLOR[infoTyped.worst]||"#16a34a";
+            const gb=SEV_BG[infoTyped.worst]||"#f0fdf4";
+            const gborder=SEV_BORDER[infoTyped.worst]||"#bbf7d0";
+            return (
+              <div key={tactic} style={{background:gb,border:`1px solid ${gborder}`,borderRadius:10,padding:"12px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#0f172a",lineHeight:1.3,flex:1,marginRight:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tactic}</div>
+                  <div style={{width:26,height:26,borderRadius:7,background:gc,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:12,fontWeight:900,flexShrink:0}}>{grade}</div>
+                </div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:gc,fontWeight:700,textTransform:"uppercase"}}>{infoTyped.worst}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:2}}>{infoTyped.count} finding{infoTyped.count!==1?"s":""}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
