@@ -182,11 +182,11 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     }
   }, [assessmentId, actionPlanItems]);
 
-const openFullWindow = () => {
-    window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${token}`, "_blank");
-}
-t -m "fix: pass token in full screen URL + clear cache for CSS update"
-git push
+  const openFullWindow = () => {
+    // Get token from prop or fallback to localStorage
+    const t = token || localStorage.getItem('token') || localStorage.getItem('access_token') || '';
+    window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${t}`, "_blank");
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────
 
@@ -283,7 +283,7 @@ git push
         <div style={styles.iframeWrapper}>
           <iframe
             ref={iframeRef}
-            src={`${apiBase}/reports/${assessmentId}/interactive?token=${token}`}
+            src={`${apiBase}/reports/${assessmentId}/interactive`}
             style={styles.iframe}
             title="Interactive Threat Assessment Report"
             sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
