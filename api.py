@@ -1238,24 +1238,56 @@ async def get_interactive_report(
     logger.info(f"Counts - Critical: {assessment.critical_count}, High: {assessment.high_count}, Medium: {assessment.medium_count}")
 
     # Case 1: stored interactive HTML (new assessments)
-    stored = assessment.report_html
-    if stored and stored.strip().startswith("<!DOCTYPE html"):
-        # Validate cached HTML isn't broken (empty findings when counts show data exists)
-        total_counts = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
-        if total_counts > 0:
-            # Check if the HTML actually has findings data
-            # Look for data-finding-id or class="fid" which appear in findings tables
-            has_findings_in_html = 'data-finding-id' in stored or 'class="fid"' in stored
-            if not has_findings_in_html:
-                logger.warning(f"⚠️ Cached HTML appears broken (no findings but counts show {total_counts} findings) - will regenerate")
-                assessment.report_html = None  # Clear broken cache
-                db.commit()
+    try:
+        stored = assessment.report_html
+        if stored and stored.strip().startswith("<!DOCTYPE html"):
+            # Validate cached HTML isn't broken (empty findings when counts show data exists)
+            total_counts = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
+            if total_counts > 0:
+                # Check if the HTML actually has findings data
+                # Look for data-finding-id or class="fid" which appear in findings tables
+                has_findings_in_html = 'data-finding-id' in stored or 'class="fid"' in stored
+                if not has_findings_in_html:
+                    logger.warning(f"⚠️ Cached HTML appears broken (no findings but counts show {total_counts} findings) - forcing regeneration")
+                    # Clear cache and force regeneration from markdown
+                    assessment.report_html = None
+                    db.commit()
+                    
+                    # Immediately try to regenerate from markdown
+                    if assessment.assessment_report and isinstance(assessment.assessment_report, str):
+                        try:
+                            logger.info(f"Forcing markdown regeneration for assessment {assessment_id}")
+                            structured_data, _, html_content = _parse_and_generate(
+                                raw_report=assessment.assessment_report,
+                                project_name=assessment.project_name,
+                                frameworks=meta.get("frameworks", [assessment.framework]),
+                                risk_focus_areas=meta.get("risk_areas", []),
+                            )
+                            if html_content:
+                                assessment.report_html = html_content
+                                meta["structured"] = structured_data
+                                meta["has_interactive_report"] = True
+                                assessment.report_meta = meta
+                                db.commit()
+                                logger.info(f"✓ Successfully regenerated from markdown after cache invalidation")
+                                return HTMLResponse(content=html_content)
+                        except Exception as regen_error:
+                            logger.error(f"Forced regeneration failed: {regen_error}", exc_info=True)
+                            # Will fall through to other cases
+                else:
+                    logger.info(f"✓ Serving stored HTML (Case 1) - validated {total_counts} findings")
+                    return HTMLResponse(content=stored)
             else:
-                logger.info(f"✓ Serving stored HTML (Case 1) - validated {total_counts} findings")
+                logger.info("✓ Serving stored HTML (Case 1)")
                 return HTMLResponse(content=stored)
-        else:
-            logger.info("✓ Serving stored HTML (Case 1)")
-            return HTMLResponse(content=stored)
+    except Exception as cache_check_error:
+        logger.error(f"Error checking cached HTML: {cache_check_error}", exc_info=True)
+        # Clear potentially corrupt cache
+        try:
+            assessment.report_html = None
+            db.commit()
+        except:
+            pass
 
     # Case 2: structured data in report_meta — regenerate HTML
     meta = assessment.report_meta or {}
