@@ -1192,7 +1192,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
           <div class="ap-legend-item"><span class="ap-legend-box ap-med"></span>Medium Risk</div>
           <div class="ap-legend-item"><span class="ap-legend-box ap-pivot"></span>Pivot Point</div>
         </div>
-        {generate_attack_path_svg(scenario["nodes"])}
+        {generate_attack_path_svg(scenario)}
       </div>
       ''' for scenario in attack_scenarios])}
       {f'<div class="alert" style="margin-top:20px"><div class="alert-icon">ℹ️</div><div><div class="alert-title">No Attack Scenarios Generated</div><div class="alert-desc">Attack paths are synthesized when sufficient findings are present. Continue assessment to generate scenarios.</div></div></div>' if not attack_scenarios else ''}
