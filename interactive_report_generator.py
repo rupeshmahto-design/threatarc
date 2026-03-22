@@ -325,6 +325,49 @@ tr.tr-planned td{background:#f0fdf4 !important}
 .fade-in{animation:fadeUp .4s ease forwards;opacity:0}
 @media(max-width:1100px){.domains-grid,.spec-grid,.two-col{grid-template-columns:1fr 1fr}.rec-panel.active{grid-template-columns:1fr}.meta-strip{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.domains-grid,.spec-grid,.two-col,.rec-panel.active,.meta-strip{grid-template-columns:1fr}}
+
+/* ─ MITRE HEATMAP ─ */
+.mitre-wrap{{overflow-x:auto;padding-bottom:8px}}
+.mitre-grid{{display:flex;gap:8px;min-width:900px}}
+.mitre-col{{flex:1;min-width:90px;display:flex;flex-direction:column;gap:6px}}
+.mitre-head{{background:var(--t1);color:white;border-radius:8px;padding:8px 6px;text-align:center}}
+.mitre-head-id{{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.6);margin-bottom:2px;font-weight:500}}
+.mitre-head-name{{font-size:10px;font-weight:700;color:white;line-height:1.3}}
+.mitre-cell{{border-radius:7px;padding:7px 8px;cursor:pointer;transition:all .15s;border:1px solid transparent}}
+.mitre-cell:hover{{transform:translateY(-1px);box-shadow:var(--shadow-md)}}
+.mitre-cell.c{{background:var(--cg);border-color:var(--cb)}}
+.mitre-cell.h{{background:var(--hg);border-color:var(--hb)}}
+.mitre-cell.m{{background:var(--mg);border-color:var(--mb)}}
+.mitre-cell.ok{{background:var(--lg);border-color:var(--lb)}}
+.mitre-cid{{font-family:'JetBrains Mono',monospace;font-size:8px;display:block;margin-bottom:2px;font-weight:600}}
+.mitre-cid.c{{color:var(--c)}}.mitre-cid.h{{color:var(--h)}}.mitre-cid.m{{color:var(--m)}}.mitre-cid.ok{{color:var(--l)}}
+.mitre-cname{{font-size:10px;font-weight:700;color:var(--t1);display:block;line-height:1.3;margin-bottom:3px}}
+.mitre-score{{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600}}
+.mitre-score.c{{color:var(--c)}}.mitre-score.h{{color:var(--h)}}.mitre-score.m{{color:var(--m)}}.mitre-score.ok{{color:var(--l)}}
+.mitre-empty{{background:var(--s2);border-radius:7px;padding:7px 8px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t4)}}
+/* ─ ATTACK PATH SVG ─ */
+.ap-svg-wrap{{overflow-x:auto;padding:8px 0}}
+.ap-svg-wrap svg{{min-width:700px}}
+/* ─ KILL CHAIN ENHANCED ─ */
+.kc-tabs{{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}}
+.kc-tab{{padding:6px 14px;border-radius:8px;border:1px solid var(--bd2);background:var(--white);color:var(--t2);font-size:11px;cursor:pointer;transition:all .15s;font-weight:700;font-family:'Epilogue',sans-serif}}
+.kc-tab.active{{background:var(--t1);color:white;border-color:var(--t1)}}
+.kc-panel{{display:none}}.kc-panel.active{{display:block}}
+.kc-detail-card{{background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm);margin-top:14px}}
+.kc-phase-row{{display:flex;border-bottom:1px solid var(--bd);transition:background .1s}}
+.kc-phase-row:last-child{{border-bottom:none}}
+.kc-phase-row:hover{{background:var(--s2)}}
+.kc-phase-num{{width:36px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--t3);flex-shrink:0;border-right:1px solid var(--bd);background:var(--s2)}}
+.kc-phase-icon{{width:44px;display:flex;align-items:center;justify-content:center;font-size:18px;border-right:1px solid var(--bd);flex-shrink:0}}
+.kc-phase-body{{flex:1;padding:10px 14px}}
+.kc-phase-title{{font-size:12px;font-weight:800;color:var(--t1);margin-bottom:2px}}
+.kc-phase-tech{{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--a);font-weight:600;margin-bottom:4px}}
+.kc-phase-desc{{font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:5px}}
+.kc-phase-ev{{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);background:var(--s2);padding:3px 7px;border-radius:4px;border-left:2px solid var(--a);display:inline-block;margin-bottom:4px}}
+.kc-phase-right{{width:120px;flex-shrink:0;padding:10px 12px;border-left:1px solid var(--bd);display:flex;flex-direction:column;gap:4px;justify-content:center}}
+.kc-det-label{{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--t3);text-transform:uppercase;font-weight:600}}
+.kc-det-val{{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700}}
+.kc-det-val.fast{{color:var(--c)}}.kc-det-val.med{{color:var(--h)}}.kc-det-val.slow{{color:var(--l)}}
 """
 
 
@@ -855,6 +898,16 @@ async function exportPDF(){{
   finally{{btn.innerHTML='⬇ Export Action Plan as PDF';btn.disabled=false;}}
 }}
 function printPlan(){{window.print();}}
+
+function openFindingById(id){{const f=FD.find(x=>x.id===id);if(f)openModal(f);}}
+function swapKC(b,p){{
+  document.querySelectorAll('.kc-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.kc-panel').forEach(t=>t.classList.remove('active'));
+  b.classList.add('active');
+  const el=document.getElementById(p);if(el)el.classList.add('active');
+  const detail=document.getElementById(p.replace('kc-panel-','kc-detail-'));
+  if(detail){{document.querySelectorAll('[id^="kc-detail-"]').forEach(x=>x.classList.remove('active'));detail.classList.add('active');}}
+}}
 function esc(s){{const d=document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}}
 """
 
@@ -905,6 +958,274 @@ def _compute_domains(data: Dict[str, Any]) -> list:
         domains.append(("Network Security", 7.5, 0, "LOW"))
     return domains[:8]
 
+
+
+# ─── MITRE HEATMAP BUILDER ──────────────────────────────────────────────────
+
+MITRE_TACTIC_MAP = {
+    "TA0001": "Initial Access", "TA0002": "Execution",
+    "TA0003": "Persistence", "TA0004": "Privilege Escalation",
+    "TA0005": "Defense Evasion", "TA0006": "Credential Access",
+    "TA0007": "Discovery", "TA0008": "Lateral Movement",
+    "TA0009": "Collection", "TA0010": "Command and Control",
+    "TA0011": "Exfiltration", "TA0012": "Impact",
+}
+
+MITRE_TACTICS_ORDER = [
+    ("TA0001", "Initial Access"), ("TA0002", "Execution"),
+    ("TA0003", "Persistence"), ("TA0004", "Privilege Esc."),
+    ("TA0005", "Defense Evasion"), ("TA0006", "Cred. Access"),
+    ("TA0007", "Discovery"), ("TA0008", "Lateral Move."),
+    ("TA0009", "Collection"), ("TA0010", "Command & Ctrl"),
+    ("TA0011", "Exfiltration"), ("TA0012", "Impact"),
+]
+
+PHASE_ICONS_MAP = {
+    "Reconnaissance": "🔍", "Initial Access": "📧", "Execution": "💥",
+    "Persistence": "🧠", "Privilege Escalation": "⬆️", "Defense Evasion": "🛡️",
+    "Credential Access": "🔑", "Discovery": "🗺", "Lateral Movement": "↔️",
+    "Collection": "📦", "Command and Control": "📡", "Exfiltration": "🚀",
+    "Impact": "💥", "Weaponization": "🔧", "Delivery": "📤",
+    "Installation": "⚙️", "Actions on Objectives": "🎯",
+    "Spoofing": "🎭", "Tampering": "✂️", "Repudiation": "🚫",
+    "Information Disclosure": "👁", "Denial of Service": "🔴",
+    "Elevation of Privilege": "⬆️",
+    "Define Objectives": "🎯", "Define Technical Scope": "🗺",
+    "Application Decomposition": "🔩", "Threat Analysis": "🧐",
+    "Vulnerability Analysis": "🔎", "Attack Modeling": "⚔️",
+    "Risk & Impact Analysis": "📊", "C2": "📡", "Exploit": "💥",
+    "Weaponize": "🔧", "Deliver": "📤", "Install": "⚙️",
+    "Cover": "🕶️", "Exploit": "💥",
+}
+
+
+def _build_mitre_heatmap(findings: list, frameworks: list) -> str:
+    """Build MITRE ATT&CK coverage map from findings data."""
+    is_mitre = any("MITRE" in fw.upper() for fw in frameworks)
+    if not is_mitre:
+        # Generic tactic heatmap for non-MITRE frameworks
+        return _build_generic_tactic_map(findings)
+
+    # Group findings by tactic_id
+    tactic_findings: Dict[str, list] = {}
+    for f in findings:
+        tid = f.get("tactic_id", "")
+        # Also try to match by tactic name
+        if not tid:
+            tname = (f.get("tactic") or "").lower()
+            for ta_id, ta_name in MITRE_TACTICS_ORDER:
+                if ta_name.lower() in tname or tname in ta_name.lower():
+                    tid = ta_id
+                    break
+        if tid:
+            tactic_findings.setdefault(tid, [])
+            tactic_findings[tid].append(f)
+
+    cols_html = ""
+    covered = 0
+    for ta_id, ta_short in MITRE_TACTICS_ORDER:
+        flist = tactic_findings.get(ta_id, [])
+        cells = ""
+        for f in flist[:3]:  # max 3 cells per column
+            sc2 = _sev_cls(f.get("severity", "MEDIUM"))
+            tech = html.escape(f.get("technique_id", "—"))
+            title = html.escape(f.get("title", "")[:28])
+            score = f.get("risk_score", 0)
+            cells += f'''<div class="mitre-cell {sc2}" onclick="openFindingById('{html.escape(f.get("id",""))}')">
+  <span class="mitre-cid {sc2}">{tech}</span>
+  <span class="mitre-cname">{title}</span>
+  <span class="mitre-score {sc2}">Score: {score}/25</span>
+</div>'''
+        if not cells:
+            cells = '<div class="mitre-empty">No findings</div>'
+        else:
+            covered += 1
+        cols_html += f'''<div class="mitre-col">
+  <div class="mitre-head">
+    <div class="mitre-head-id">{ta_id}</div>
+    <div class="mitre-head-name">{ta_short}</div>
+  </div>
+  {cells}
+</div>'''
+
+    return f'''<div class="mitre-wrap"><div class="mitre-grid">{cols_html}</div></div>
+<p style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);margin-top:10px;text-align:right">
+  ← Scroll to view all 12 tactics → · {covered}/12 tactics covered · Click any cell to open finding
+</p>'''
+
+
+def _build_generic_tactic_map(findings: list) -> str:
+    """Non-MITRE framework: group by tactic name."""
+    tactic_groups: Dict[str, list] = {}
+    for f in findings:
+        tactic = f.get("tactic", "General") or "General"
+        tactic_groups.setdefault(tactic, [])
+        tactic_groups[tactic].append(f)
+
+    cols_html = ""
+    for tactic, flist in list(tactic_groups.items())[:12]:
+        cells = ""
+        for f in flist[:3]:
+            sc2 = _sev_cls(f.get("severity", "MEDIUM"))
+            tech = html.escape(f.get("technique_id", "—"))
+            title = html.escape(f.get("title", "")[:28])
+            score = f.get("risk_score", 0)
+            cells += f'''<div class="mitre-cell {sc2}" onclick="openFindingById('{html.escape(f.get("id",""))}')">
+  <span class="mitre-cid {sc2}">{tech}</span>
+  <span class="mitre-cname">{title}</span>
+  <span class="mitre-score {sc2}">Score: {score}/25</span>
+</div>'''
+        if not cells:
+            cells = '<div class="mitre-empty">No findings</div>'
+        tname_short = tactic[:16] + ("…" if len(tactic) > 16 else "")
+        cols_html += f'''<div class="mitre-col">
+  <div class="mitre-head">
+    <div class="mitre-head-name">{html.escape(tname_short)}</div>
+  </div>{cells}</div>'''
+
+    return f'<div class="mitre-wrap"><div class="mitre-grid">{cols_html}</div></div>'
+
+
+def _build_attack_path_svg(kill_chains: list) -> str:
+    """Build SVG attack path from kill chain phases."""
+    if not kill_chains:
+        return '<div style="padding:32px;text-align:center;color:var(--t3);font-family:JetBrains Mono,monospace;font-size:12px">No attack path data available for this assessment</div>'
+
+    kc = kill_chains[0]
+    phases = kc.get("phases", [])
+    title = html.escape(kc.get("title", "Attack Scenario"))
+    score = kc.get("risk_score", 20)
+    score_cls = "c" if score >= 20 else "h" if score >= 12 else "m"
+
+    if not phases:
+        return f'<div class="card-body"><p style="color:var(--t3);font-size:12px;text-align:center">{title}</p></div>'
+
+    # SVG layout — nodes in a flow
+    n = len(phases)
+    node_r = 32
+    gap = 100
+    start_x = 60
+    svg_w = max(700, start_x * 2 + n * (node_r * 2 + gap))
+    svg_h = 200
+
+    SEV_STROKE = {"CRITICAL": "#dc2626", "HIGH": "#ea580c", "MEDIUM": "#d97706", "LOW": "#16a34a"}
+    SEV_FILL   = {"CRITICAL": "#fef2f2", "HIGH": "#fff7ed", "MEDIUM": "#fffbeb", "LOW": "#f0fdf4"}
+
+    nodes_svg = ""
+    arrows_svg = ""
+    cx_list = []
+
+    for i, phase in enumerate(phases):
+        cx = start_x + node_r + i * (node_r * 2 + gap)
+        cy = 90
+        cx_list.append(cx)
+        pname = phase.get("phase", f"Phase {i+1}")
+        tech = phase.get("technique_id", "")
+        det = phase.get("detection_window", "")
+        det_short = det[:14] if det else ""
+        icon = PHASE_ICONS_MAP.get(pname, "▶")
+        # severity from the phase or infer
+        sev = phase.get("severity", "HIGH")
+        stroke = SEV_STROKE.get(sev, "#ea580c")
+        fill   = SEV_FILL.get(sev, "#fff7ed")
+        pname_short = pname[:12] + ("…" if len(pname) > 12 else "")
+        tech_disp = tech[:10] if tech else ""
+
+        # Arrow to previous node
+        if i > 0:
+            prev_cx = cx_list[i-1]
+            arrows_svg += f'''<line x1="{prev_cx + node_r}" y1="{cy}" x2="{cx - node_r - 4}" y2="{cy}"
+  stroke="{stroke}" stroke-width="1.5" opacity="0.6" marker-end="url(#arr_{score_cls})"/>'''
+
+        nodes_svg += f'''<g class="ap-node" style="cursor:pointer" title="{html.escape(pname)}">
+  <circle cx="{cx}" cy="{cy}" r="{node_r}" fill="white" stroke="{stroke}" stroke-width="2"/>
+  <circle cx="{cx}" cy="{cy}" r="{node_r - 6}" fill="{fill}"/>
+  <text x="{cx}" y="{cy + 2}" text-anchor="middle" dominant-baseline="middle" font-size="18">{icon}</text>
+  <text x="{cx}" y="{cy + node_r + 16}" text-anchor="middle" fill="{stroke}" font-size="9" font-family="JetBrains Mono" font-weight="600">{html.escape(pname_short)}</text>
+  <text x="{cx}" y="{cy + node_r + 27}" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">{html.escape(tech_disp)}</text>
+  {f'<text x="{cx}" y="{cy + node_r + 38}" text-anchor="middle" fill="{stroke}" font-size="8" font-family="JetBrains Mono" font-weight="600">{html.escape(det_short)}</text>' if det_short else ''}
+</g>'''
+
+    score_color = SEV_STROKE.get("CRITICAL" if score >= 20 else "HIGH" if score >= 12 else "MEDIUM", "#ea580c")
+    svg = f'''<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+  <div>
+    <div style="font-size:13px;font-weight:800;color:var(--t1)">{title}</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);margin-top:2px">{n} phases sourced directly from your uploaded documentation · Detection window: varies</div>
+  </div>
+  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:var(--cg);color:var(--c);border:1px solid var(--cb)">CRITICAL · SCORE {score}/25</span>
+</div>
+<div class="ap-svg-wrap">
+<svg width="100%" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr_c" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr_h" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr_m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#d97706" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+  </defs>
+  {arrows_svg}
+  {nodes_svg}
+</svg>
+</div>'''
+
+    # If multiple kill chains, add tabs
+    if len(kill_chains) > 1:
+        tabs_html = ""
+        panels_html = ""
+        for ki, kc_item in enumerate(kill_chains[:3]):
+            active = "active" if ki == 0 else ""
+            ktitle = html.escape(kc_item.get("title", f"Scenario {ki+1}")[:40])
+            kscore = kc_item.get("risk_score", 0)
+            tabs_html += f'<button class="kc-tab {active}" onclick="swapKC(this,\'kc-panel-{ki}\')">Scenario {ki+1}: {ktitle} ({kscore}/25)</button>'
+        return f'<div class="kc-tabs">{tabs_html}</div><div id="kc-panel-0" class="kc-panel active">{svg}</div>'
+
+    return svg
+
+
+def _build_kill_chain_detail(kill_chains: list) -> str:
+    """Build enhanced kill chain detail table with detection windows."""
+    if not kill_chains:
+        return ""
+
+    panels = ""
+    for ki, kc in enumerate(kill_chains[:3]):
+        phases = kc.get("phases", [])
+        rows = ""
+        for i, ph in enumerate(phases):
+            pname = ph.get("phase", f"Phase {i+1}")
+            icon = PHASE_ICONS_MAP.get(pname, "▶")
+            tech = html.escape(ph.get("technique_id", ""))
+            desc = html.escape(ph.get("description", ""))
+            ev = html.escape((ph.get("doc_evidence", "") or "")[:80])
+            det = ph.get("detection_window", "")
+            mit = html.escape(ph.get("mitigation", "")[:60])
+            # Detection speed class
+            det_lower = det.lower()
+            det_cls = "fast" if any(x in det_lower for x in ["second","minute","real-time","immediate"]) else \
+                      "med" if any(x in det_lower for x in ["hour","day"]) else "slow"
+            rows += f'''<div class="kc-phase-row">
+  <div class="kc-phase-num">{i+1:02d}</div>
+  <div class="kc-phase-icon">{icon}</div>
+  <div class="kc-phase-body">
+    <div class="kc-phase-title">{html.escape(pname)}</div>
+    <div class="kc-phase-tech">{tech}</div>
+    <div class="kc-phase-desc">{desc}</div>
+    {f'<div class="kc-phase-ev">{ev}</div>' if ev else ''}
+    {f'<div style="font-size:10px;color:var(--t2)">↳ {mit}</div>' if mit else ''}
+  </div>
+  <div class="kc-phase-right">
+    <div class="kc-det-label">Detection</div>
+    <div class="kc-det-val {det_cls}">{html.escape(det[:20] if det else "—")}</div>
+  </div>
+</div>'''
+        active = "active" if ki == 0 else ""
+        panels += f'<div id="kc-detail-{ki}" class="kc-panel {active}"><div class="kc-detail-card">{rows}</div></div>'
+
+    return panels
 
 def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
     """
@@ -965,6 +1286,10 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
           <td><span class="pill {sc2}">{html.escape(tl)}</span></td>
         </tr>"""
 
+    # Build new sections
+    mitre_html = _build_mitre_heatmap(findings, fw)
+    attack_path_html = _build_attack_path_svg(kcs)
+    kill_chain_detail_html = _build_kill_chain_detail(kcs)
     js_code = _build_js(data)
 
     return f"""<!DOCTYPE html>
@@ -976,7 +1301,8 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-<style>{CSS}</style>
+<style>{CSS}
+</style>
 </head>
 <body>
 
@@ -997,6 +1323,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   </div>
   <div class="nav-sec">Report Sections</div>
   <a class="nav-item active" href="#overview"><span class="nav-icon">📋</span>Overview<span class="nav-cnt c">{findings_count}</span></a>
+  <a class="nav-item" href="#mitre"><span class="nav-icon">🗺</span>ATT&amp;CK Map</a>
   <a class="nav-item" href="#findings"><span class="nav-icon">🔍</span>All Findings<span class="nav-cnt c">{findings_count}</span></a>
   <a class="nav-item" href="#kill-chain"><span class="nav-icon" id="nav-sec03-icon">⛓</span><span id="nav-sec03-label">Threat Phases</span></a>
   <a class="nav-item" href="#matrix"><span class="nav-icon">📊</span>Risk Matrix</a>
@@ -1046,10 +1373,22 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
   <div class="domains-grid">{domain_cards_html}</div>
 </section>
 
+<!-- MITRE ATT&CK COVERAGE MAP -->
+<section class="sec" id="mitre">
+  <div class="sec-h">
+    <span class="sec-num" style="background:#f0fdf4;color:var(--l);border-color:var(--lb)">02</span>
+    <div>
+      <div class="sec-title">ATT&amp;CK Coverage Map</div>
+      <div class="sec-sub">Techniques identified from your report · Click any cell to open the related finding</div>
+    </div>
+  </div>
+  {mitre_html}
+</section>
+
 <!-- FINDINGS -->
 <section class="sec" id="findings">
   <div class="sec-h">
-    <span class="sec-num">02</span>
+    <span class="sec-num">03</span>
     <div>
       <div class="sec-title">All Findings — {findings_count} Total</div>
       <div class="sec-sub">Click any row to open full detail · Sort by column · Filter by severity · Add to Action Plan</div>
@@ -1081,27 +1420,23 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- KILL CHAIN / THREAT PHASES — title updated dynamically per framework -->
 <section class="sec" id="kill-chain">
   <div class="sec-h">
-    <span class="sec-num">03</span>
+    <span class="sec-num">04</span>
     <div>
       <div class="sec-title"><span id="sec03-icon">⛓ </span><span id="sec03-title">Threat Phase Analysis</span></div>
       <div class="sec-sub" id="sec03-sub">Attack scenario phases — sourced from document evidence · Updated per selected framework</div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-hdr">
-      <div><div class="card-title" id="kc-card-title">{html.escape(kc_title)}</div><div class="card-sub">{html.escape(kc_sub)}</div></div>
-      <span class="pill {overall_cls}">{overall} Risk</span>
-    </div>
-    <div class="card-body">
-      <div class="kc-scroll"><div class="kc-phases" id="kc-phases"></div></div>
-    </div>
+  {attack_path_html}
+  <div style="margin-top:20px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">Phase-by-Phase Analysis with Detection Windows</div>
+    {kill_chain_detail_html}
   </div>
 </section>
 
 <!-- RISK MATRIX -->
 <section class="sec" id="matrix">
   <div class="sec-h">
-    <span class="sec-num">04</span>
+    <span class="sec-num">05</span>
     <div>
       <div class="sec-title">Risk Priority Matrix</div>
       <div class="sec-sub">Likelihood × Impact · Critical = 16–25 · High = 9–15 · Medium = 6–11</div>
@@ -1134,7 +1469,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- RECOMMENDATIONS -->
 <section class="sec" id="recommendations">
   <div class="sec-h">
-    <span class="sec-num">05</span>
+    <span class="sec-num">06</span>
     <div>
       <div class="sec-title">Prioritized Recommendations — {total_recs} Total</div>
       <div class="sec-sub">P0: {p0_recs} critical (0–30 days) · P1: {p1_recs} high (30–90 days) · P2: {p2_recs} medium (90–180 days)</div>
@@ -1153,7 +1488,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- COMPLIANCE -->
 <section class="sec" id="compliance">
   <div class="sec-h">
-    <span class="sec-num">06</span>
+    <span class="sec-num">07</span>
     <div>
       <div class="sec-title">Key Findings Summary</div>
       <div class="sec-sub">Top findings with business impact and remediation timeline</div>
@@ -1170,7 +1505,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
 <!-- ACTION PLAN -->
 <section class="sec" id="action-plan" style="background:var(--white)">
   <div class="sec-h">
-    <span class="sec-num">07</span>
+    <span class="sec-num">08</span>
     <div>
       <div class="sec-title">Action Plan</div>
       <div class="sec-sub">Select findings using "+ Add to Plan" · Assign owners &amp; due dates · Track status · Export as PDF</div>
