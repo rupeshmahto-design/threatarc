@@ -1182,7 +1182,7 @@ def generate_html(data: Dict[str, Any], project_name: str = "") -> str:
         <div class="ap-scenario-header">
           <div style="flex:1">
             <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:3px">{html.escape(scenario["title"])}</div>
-            <div style="font-size:11px;color:var(--t2)">{html.escape(scenario["description"])}</div>
+            <div style="font-size:11px;color:var(--t2)">{html.escape(scenario.get("description", scenario.get("subtitle", "")))}</div>
           </div>
           <span class="pill {_sev_cls(scenario["severity"])}">{scenario["severity"]}</span>
         </div>
