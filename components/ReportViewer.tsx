@@ -117,6 +117,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [actionPlanItems, setActionPlanItems] = useState<ActionPlanItem[]>([]);
   const [apSaving, setApSaving] = useState(false);
   const [apSaved, setApSaved] = useState(false);
