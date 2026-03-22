@@ -182,9 +182,11 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
     }
   }, [assessmentId, actionPlanItems]);
 
-  const openFullWindow = () => {
-    window.open(`${apiBase}/reports/${assessmentId}/interactive`, "_blank");
-  };
+const openFullWindow = () => {
+    window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${token}`, "_blank");
+}
+t -m "fix: pass token in full screen URL + clear cache for CSS update"
+git push
 
   // ── Render ──────────────────────────────────────────────────────────────
 
