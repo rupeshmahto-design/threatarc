@@ -578,7 +578,7 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
           </button>
         ))}
       </div>
-      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#64748b",marginBottom:8}}>Showing {filtered.length} of {findings.length} findings</div>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#64748b",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>Showing {filtered.length} of {findings.length} findings</span><span style={{color:"#94a3b8"}}>← Click any row to see evidence, scores & mitigation steps</span></div>
       <div style={{border:"1px solid #e2e8f0",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(15,23,42,.06)"}}>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -593,19 +593,45 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
             </thead>
             <tbody>
               {filtered.map((f,i)=>(
-                <tr key={f.id} onClick={()=>onFindingClick(f)} style={{background:i%2===0?"#fff":"#f8f9fb",cursor:"pointer",borderLeft:`3px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`}}
-                  onMouseOver={e=>(e.currentTarget.style.background="#eff6ff")}
-                  onMouseOut={e=>(e.currentTarget.style.background=i%2===0?"#fff":"#f8f9fb")}>
-                  <td style={{padding:"10px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb",fontWeight:700,whiteSpace:"nowrap"}}>{f.id}</td>
-                  <td style={{padding:"10px 12px",maxWidth:240}}><div style={{fontWeight:700,fontSize:12,color:"#0f172a",lineHeight:1.3}}>{f.title}</div></td>
-                  <td style={{padding:"10px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#475569",whiteSpace:"nowrap"}}>{f.tactic||"—"}</td>
-                  <td style={{padding:"10px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb"}}>{f.technique_id||"—"}</td>
-                  <td style={{padding:"10px 12px"}}><Pill sev={f.severity}/></td>
-                  <td style={{padding:"10px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:900,color:SEV_COLOR[f.severity]}}>{f.risk_score}</td>
-                  <td style={{padding:"10px 12px",fontSize:12,color:"#475569"}}>{f.owner||"—"}</td>
-                  <td style={{padding:"10px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#dc2626",fontWeight:600}}>{f.timeline||"—"}</td>
+                <tr key={f.id} onClick={()=>onFindingClick(f)}
+                  style={{background:"#fff",cursor:"pointer",transition:"background .1s",borderLeft:`4px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`}}
+                  onMouseOver={e=>{e.currentTarget.style.background=SEV_BG[f.severity]||"#eff6ff";}}
+                  onMouseOut={e=>{e.currentTarget.style.background="#fff";}}>
+                  <td style={{padding:"12px 12px",whiteSpace:"nowrap"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb",fontWeight:800}}>{f.id}</div>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8",marginTop:2}}>{f.priority}</div>
+                  </td>
+                  <td style={{padding:"12px 12px",maxWidth:260}}>
+                    <div style={{fontWeight:800,fontSize:12,color:"#0f172a",lineHeight:1.3,marginBottom:3}}>{f.title}</div>
+                    {f.verbatim_evidence&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#64748b",fontStyle:"italic",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:240}}>"{f.verbatim_evidence.slice(0,60)}{f.verbatim_evidence.length>60?"…":""}"</div>}
+                  </td>
+                  <td style={{padding:"12px 12px"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#475569",fontWeight:600,background:"#f1f5f9",padding:"2px 6px",borderRadius:4,display:"inline-block",whiteSpace:"nowrap"}}>{f.tactic||"—"}</div>
+                  </td>
+                  <td style={{padding:"12px 12px"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#2563eb",fontWeight:700,background:"#eff6ff",padding:"2px 6px",borderRadius:4,border:"1px solid #bfdbfe",display:"inline-block"}}>{f.technique_id||"—"}</div>
+                  </td>
+                  <td style={{padding:"12px 12px"}}><Pill sev={f.severity}/></td>
+                  <td style={{padding:"12px 12px"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:SEV_BG[f.severity],border:`2px solid ${SEV_COLOR[f.severity]}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:900,color:SEV_COLOR[f.severity],flexShrink:0}}>{f.risk_score}</div>
+                      <div style={{flex:1,minWidth:40}}>
+                        <div style={{height:4,background:"#f1f5f9",borderRadius:2,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${(f.risk_score/25)*100}%`,background:SEV_COLOR[f.severity],borderRadius:2}}/>
+                        </div>
+                        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"#94a3b8",marginTop:1}}>/25</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{padding:"12px 12px",fontSize:11,color:"#475569",fontWeight:600}}>{f.owner||"—"}</td>
+                  <td style={{padding:"12px 12px"}}>
+                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,
+                      color:f.timeline&&(f.timeline.includes("0-30")||f.timeline.includes("Immediate"))?"#dc2626":f.timeline&&f.timeline.includes("30-90")?"#ea580c":"#d97706",
+                      background:f.timeline&&(f.timeline.includes("0-30")||f.timeline.includes("Immediate"))?"#fef2f2":f.timeline&&f.timeline.includes("30-90")?"#fff7ed":"#fffbeb",
+                      padding:"3px 7px",borderRadius:6,border:"1px solid #fde68a",whiteSpace:"nowrap",display:"inline-block"}}>{f.timeline||"—"}</div>
+                  </td>
                 </tr>
-              ))}
+                            ))}
             </tbody>
           </table>
         </div>
@@ -1007,11 +1033,15 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   e.preventDefault();
   const container=scrollContainerRef.current;
   const el=document.getElementById(item.id);
-  if(container&&el){
-    const top=el.offsetTop-16;
-    container.scrollTo({top,behavior:"smooth"});
-  } else {
-    el?.scrollIntoView({behavior:"smooth",block:"start"});
+  if(container){
+    if(item.id==="exec-summary"){
+      container.scrollTo({top:0,behavior:"smooth"});
+    } else if(el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+    }
   }
   setActiveSection(item.id);
 }}
@@ -1034,6 +1064,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
           <div ref={scrollContainerRef} style={{flex:1,padding:"16px 20px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,maxHeight:"calc(100vh - 140px)"}}>
             {structured?(
               <>
+                <ExecutiveSummary data={structured} projectName={projectName} onPrint={printExecSummary}/>
                 <OverviewSection data={structured} projectName={projectName}/>
                 <AttckMapSection findings={findings} frameworks={fw} onFindingClick={setSelectedFinding}/>
                 <KillChainSection killChains={killChains}/>
