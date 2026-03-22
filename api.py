@@ -1275,6 +1275,26 @@ async def process_uploaded_file(
         return {"filename": file.filename, "size": 0, "extracted_text": f"[{file_extension.upper()} Document: {file.filename}]", "char_count": 0, "estimated_tokens": 0, "error": str(e), "fallback": True}
 
 
+
+@app.post("/admin/clear-report-cache")
+async def clear_report_cache(
+    user: User = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """One-time endpoint to clear cached report HTML so reports regenerate fresh."""
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    assessments = db.query(ThreatAssessment).filter(
+        ThreatAssessment.organization_id == user.organization_id
+    ).all()
+    count = 0
+    for a in assessments:
+        a.report_html = None
+        count += 1
+    db.commit()
+    return {"message": f"Cleared cache for {count} assessments"}
+
+
 # ── Static file serving ──────────────────────────────────────────────────────
 
 static_dir = Path(__file__).parent / "dist"
