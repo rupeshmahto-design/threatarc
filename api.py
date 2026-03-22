@@ -1227,7 +1227,7 @@ async def get_interactive_report(
     logger.info(f"=== Interactive Report for Assessment {assessment_id}: {assessment.project_name} ===")
     
     meta = assessment.report_meta or {}
-    total_findings_count = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
+    total_findings_count = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0)
     
     # Helper function to validate HTML has findings
     def html_has_findings(html_str: str) -> bool:
