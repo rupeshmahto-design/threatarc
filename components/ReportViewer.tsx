@@ -865,6 +865,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [selectedFinding,setSelectedFinding]=useState<Finding|null>(null);
   const [activeView,setActiveView]=useState<"report"|"raw">("report");
   const [printMode,setPrintMode]=useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const tok=token||localStorage.getItem("token")||localStorage.getItem("access_token")||"";
   const headers={Authorization:`Bearer ${tok}`,"Content-Type":"application/json"};
@@ -883,7 +884,8 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   },[assessmentId]);
 
   useEffect(()=>{
-    const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)setActiveSection(e.target.id);}),{threshold:0.3,rootMargin:"-10% 0px -70% 0px"});
+    const root=scrollContainerRef.current||null;
+    const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)setActiveSection(e.target.id);}),{root,threshold:0.2,rootMargin:"-5% 0px -60% 0px"});
     NAV_ITEMS.forEach(item=>{const el=document.getElementById(item.id);if(el)obs.observe(el);});
     return ()=>obs.disconnect();
   },[structured]);
@@ -1001,7 +1003,18 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
             <div style={{padding:"0 16px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5}}>Report Sections</div>
             {NAV_ITEMS.map(item=>(
               <a key={item.id} href={`#${item.id}`}
-                onClick={e=>{e.preventDefault();document.getElementById(item.id)?.scrollIntoView({behavior:"smooth",block:"start"});setActiveSection(item.id);}}
+                onClick={e=>{
+  e.preventDefault();
+  const container=scrollContainerRef.current;
+  const el=document.getElementById(item.id);
+  if(container&&el){
+    const top=el.offsetTop-16;
+    container.scrollTo({top,behavior:"smooth"});
+  } else {
+    el?.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  setActiveSection(item.id);
+}}
                 style={{display:"flex",alignItems:"center",gap:10,padding:"9px 16px",fontSize:12,fontWeight:700,textDecoration:"none",transition:"all .1s",color:activeSection===item.id?"#2563eb":"#475569",background:activeSection===item.id?"#eff6ff":"transparent",borderLeft:activeSection===item.id?"3px solid #2563eb":"3px solid transparent"}}>
                 <span style={{fontSize:14}}>{item.icon}</span>
                 <span>{item.label}</span>
@@ -1018,7 +1031,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
           </nav>
 
           {/* Main content */}
-          <div style={{flex:1,padding:"16px 20px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,maxHeight:"calc(100vh - 140px)"}}>
+          <div ref={scrollContainerRef} style={{flex:1,padding:"16px 20px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,maxHeight:"calc(100vh - 140px)"}}>
             {structured?(
               <>
                 <OverviewSection data={structured} projectName={projectName}/>
