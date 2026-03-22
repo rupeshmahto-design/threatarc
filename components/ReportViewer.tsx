@@ -183,7 +183,6 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
   }, [assessmentId, actionPlanItems]);
 
   const openFullWindow = () => {
-    // Get token from prop or fallback to localStorage
     const t = token || localStorage.getItem('token') || localStorage.getItem('access_token') || '';
     window.open(`${apiBase}/reports/${assessmentId}/interactive?token=${t}`, "_blank");
   };
@@ -283,7 +282,7 @@ const ReportViewer: React.FC<ReportViewerProps> = ({
         <div style={styles.iframeWrapper}>
           <iframe
             ref={iframeRef}
-            src={`${apiBase}/reports/${assessmentId}/interactive`}
+            src={`${apiBase}/reports/${assessmentId}/interactive?token=${token || localStorage.getItem('token') || ''}`}
             style={styles.iframe}
             title="Interactive Threat Assessment Report"
             sandbox="allow-scripts allow-same-origin allow-downloads allow-popups"
