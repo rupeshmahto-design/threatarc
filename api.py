@@ -1205,8 +1205,11 @@ async def get_interactive_report(
 ):
     """
     Serve the interactive HTML report.
-    - New assessments: serve stored report_html instantly
-    - Old assessments: regenerate from markdown on-the-fly, then cache it
+    
+    Flow:
+    1. Check for valid cached HTML
+    2. If cache invalid or missing, regenerate from source data
+    3. Cache and return
     
     Supports authentication via:
     - Authorization: Bearer <token> header (standard)
@@ -1221,188 +1224,114 @@ async def get_interactive_report(
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    logger.info(f"=== Interactive Report Debug for Assessment {assessment_id} ===")
-    logger.info(f"Project: {assessment.project_name}")
-    logger.info(f"Status: {assessment.status}")
-    logger.info(f"Has report_html: {bool(assessment.report_html)}")
-    logger.info(f"Has assessment_report: {bool(assessment.assessment_report)}")
-    logger.info(f"assessment_report type: {type(assessment.assessment_report)}")
-    if assessment.assessment_report:
-        report_str = str(assessment.assessment_report)[:200]
-        logger.info(f"assessment_report preview: {report_str}")
-    logger.info(f"Has report_meta: {bool(assessment.report_meta)}")
-    if assessment.report_meta:
-        logger.info(f"report_meta keys: {list(assessment.report_meta.keys()) if isinstance(assessment.report_meta, dict) else 'not a dict'}")
-        if isinstance(assessment.report_meta, dict):
-            logger.info(f"report_meta.structured exists: {bool(assessment.report_meta.get('structured'))}")
-    logger.info(f"Counts - Critical: {assessment.critical_count}, High: {assessment.high_count}, Medium: {assessment.medium_count}")
-
-    # Case 1: stored interactive HTML (new assessments)
-    try:
-        stored = assessment.report_html
-        if stored and stored.strip().startswith("<!DOCTYPE html"):
-            # Validate cached HTML isn't broken (empty findings when counts show data exists)
-            total_counts = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
-            if total_counts > 0:
-                # Check if the HTML actually has findings data
-                # Look for data-finding-id or class="fid" which appear in findings tables
-                has_findings_in_html = 'data-finding-id' in stored or 'class="fid"' in stored
-                if not has_findings_in_html:
-                    logger.warning(f"⚠️ Cached HTML appears broken (no findings but counts show {total_counts} findings) - forcing regeneration")
-                    # Clear cache and force regeneration from markdown
-                    assessment.report_html = None
-                    db.commit()
-                    
-                    # Immediately try to regenerate from markdown
-                    if assessment.assessment_report and isinstance(assessment.assessment_report, str):
-                        try:
-                            logger.info(f"Forcing markdown regeneration for assessment {assessment_id}")
-                            structured_data, _, html_content = _parse_and_generate(
-                                raw_report=assessment.assessment_report,
-                                project_name=assessment.project_name,
-                                frameworks=meta.get("frameworks", [assessment.framework]),
-                                risk_focus_areas=meta.get("risk_areas", []),
-                            )
-                            if html_content:
-                                assessment.report_html = html_content
-                                meta["structured"] = structured_data
-                                meta["has_interactive_report"] = True
-                                assessment.report_meta = meta
-                                db.commit()
-                                logger.info(f"✓ Successfully regenerated from markdown after cache invalidation")
-                                return HTMLResponse(content=html_content)
-                        except Exception as regen_error:
-                            logger.error(f"Forced regeneration failed: {regen_error}", exc_info=True)
-                            # Will fall through to other cases
-                else:
-                    logger.info(f"✓ Serving stored HTML (Case 1) - validated {total_counts} findings")
-                    return HTMLResponse(content=stored)
-            else:
-                logger.info("✓ Serving stored HTML (Case 1)")
-                return HTMLResponse(content=stored)
-    except Exception as cache_check_error:
-        logger.error(f"Error checking cached HTML: {cache_check_error}", exc_info=True)
-        # Clear potentially corrupt cache
-        try:
-            assessment.report_html = None
-            db.commit()
-        except:
-            pass
-
-    # Case 2: structured data in report_meta — regenerate HTML
+    logger.info(f"=== Interactive Report for Assessment {assessment_id}: {assessment.project_name} ===")
+    
     meta = assessment.report_meta or {}
-    structured = meta.get("structured")
-    if structured and structured.get("all_findings"):
+    total_findings_count = (assessment.critical_count or 0) + (assessment.high_count or 0) + (assessment.medium_count or 0) + (assessment.low_count or 0)
+    
+    # Helper function to validate HTML has findings
+    def html_has_findings(html_str: str) -> bool:
+        """Check if HTML contains actual findings data."""
+        return 'data-finding-id' in html_str or 'class="fid"' in html_str or '<tr data-severity=' in html_str
+    
+    # STEP 1: Check cached HTML
+    if assessment.report_html and assessment.report_html.strip().startswith("<!DOCTYPE html"):
+        # Validate cache isn't broken (has findings when counts show data exists)
+        if total_findings_count > 0:
+            if html_has_findings(assessment.report_html):
+                logger.info(f"✓ Serving valid cached HTML ({total_findings_count} findings)")
+                return HTMLResponse(content=assessment.report_html)
+            else:
+                logger.warning(f"⚠️ Cached HTML is broken (no findings but DB shows {total_findings_count}) - clearing cache")
+                assessment.report_html = None
+                db.commit()
+        else:
+            # No findings expected, cache is fine
+            logger.info("✓ Serving cached HTML (no findings)")
+            return HTMLResponse(content=assessment.report_html)
+    
+    # STEP 2: No valid cache - regenerate from source data
+    logger.info(f"Regenerating interactive HTML from source data...")
+    
+    structured_data = None
+    html_content = None
+    
+    # Try path A: report_meta.structured (already parsed)
+    if meta.get("structured") and meta["structured"].get("all_findings"):
         try:
-            logger.info(f"Regenerating interactive HTML for assessment {assessment_id} from structured data in report_meta")
-            html_content = generate_html(structured, assessment.project_name)
-            assessment.report_html = html_content
-            db.commit()
-            return HTMLResponse(content=html_content)
+            logger.info(f"Using cached structured data: {len(meta['structured']['all_findings'])} findings")
+            structured_data = meta["structured"]
+            html_content = generate_html(structured_data, assessment.project_name)
+            logger.info(f"✓ Generated HTML from cached structured data")
         except Exception as e:
-            logger.error(f"Could not regenerate interactive HTML from report_meta: {e}", exc_info=True)
-
-    # Case 2.5: assessment_report contains JSON (not markdown)
-    if assessment.assessment_report:
+            logger.error(f"Failed to generate from cached structured: {e}", exc_info=True)
+            structured_data = None
+            html_content = None
+    
+    # Try path B: Parse assessment_report
+    if not html_content and assessment.assessment_report:
         try:
-            # Try to parse as JSON first
             report_data = assessment.assessment_report
-            parsed_json = None
             
-            if isinstance(report_data, str):
+            # B1: Is it JSON?
+            if isinstance(report_data, dict):
+                logger.info("Parsing dict/JSON from assessment_report")
+                normalized = _normalize_structured_data(report_data)
+                if not normalized.get("project_name"):
+                    normalized["project_name"] = assessment.project_name
+                if not normalized.get("frameworks_used"):
+                    normalized["frameworks_used"] = [assessment.framework]
+                structured_data = normalized
+                html_content = generate_html(structured_data, assessment.project_name)
+                logger.info(f"✓ Generated HTML from JSON ({len(structured_data.get('all_findings', []))} findings)")
+            
+            # B2: Is it markdown string?
+            elif isinstance(report_data, str):
+                # Try parsing as JSON string first
                 import json as json_lib
                 try:
                     parsed_json = json_lib.loads(report_data)
-                    logger.info(f"✓ Parsed assessment_report as JSON string")
-                except (json_lib.JSONDecodeError, ValueError):
-                    # Not JSON, continue to markdown parsing
-                    logger.info(f"Assessment {assessment_id} assessment_report is not valid JSON string")
-                    pass
-            elif isinstance(report_data, dict):
-                # Already a dict (SQLAlchemy JSON type)
-                parsed_json = report_data
-                logger.info(f"✓ assessment_report is already a dict")
-            
-            if parsed_json and isinstance(parsed_json, dict):
-                # Check if it has findings structure
-                if parsed_json.get("all_findings") or parsed_json.get("overall_risk_rating"):
-                    try:
-                        logger.info(f"✓ Found structured data with {len(parsed_json.get('all_findings', []))} findings")
-                        # Normalize data to ensure all required fields exist
-                        normalized_data = _normalize_structured_data(parsed_json)
-                        if not normalized_data.get("project_name"):
-                            normalized_data["project_name"] = assessment.project_name
-                        
-                        logger.info(f"✓ Generating HTML from normalized data")
-                        html_content = generate_html(normalized_data, assessment.project_name)
-                        
-                        # Cache it
-                        assessment.report_html = html_content
-                        meta["structured"] = normalized_data
-                        meta["has_interactive_report"] = True
-                        assessment.report_meta = meta
-                        db.commit()
-                        
-                        logger.info(f"✓ Successfully generated and cached interactive HTML (Case 2.5)")
-                        return HTMLResponse(content=html_content)
-                    except Exception as gen_error:
-                        logger.error(f"Failed to generate HTML from JSON: {gen_error}", exc_info=True)
-                        # Fall through to try markdown parsing
+                    if parsed_json.get("all_findings") or parsed_json.get("overall_risk_rating"):
+                        logger.info("Parsing JSON string from assessment_report")
+                        normalized = _normalize_structured_data(parsed_json)
+                        if not normalized.get("project_name"):
+                            normalized["project_name"] = assessment.project_name
+                        structured_data = normalized
+                        html_content = generate_html(structured_data, assessment.project_name)
+                        logger.info(f"✓ Generated HTML from JSON string ({len(structured_data.get('all_findings', []))} findings)")
+                except (json_lib.JSONDecodeError, ValueError, TypeError):
+                    # Not JSON - parse as markdown
+                    logger.info("Parsing markdown from assessment_report")
+                    structured_data, _, html_content = _parse_and_generate(
+                        raw_report=report_data,
+                        project_name=assessment.project_name,
+                        frameworks=[assessment.framework],
+                        risk_focus_areas=meta.get("risk_areas", []),
+                    )
+                    if html_content:
+                        logger.info(f"✓ Generated HTML from markdown ({len(structured_data.get('all_findings', []))} findings)")
+                    else:
+                        logger.warning("_parse_and_generate returned no HTML")
+        
         except Exception as e:
-            logger.error(f"Error processing JSON from assessment_report: {e}", exc_info=True)
-
-    # Case 3: parse markdown on-the-fly (old assessments with markdown reports)
-    if assessment.assessment_report:
-        try:
-            # Handle both string (markdown) and dict (JSON) formats
-            report_data = assessment.assessment_report
-            
-            if isinstance(report_data, str):
-                logger.info(f"Case 3: Parsing markdown for assessment {assessment_id}")
-                structured_data, _, html_content = _parse_and_generate(
-                    raw_report=report_data,
-                    project_name=assessment.project_name,
-                    frameworks=meta.get("frameworks", [assessment.framework]),
-                    risk_focus_areas=meta.get("risk_areas", []),
-                )
-                if html_content:
-                    assessment.report_html = html_content
-                    meta["structured"] = structured_data
-                    meta["has_interactive_report"] = True
-                    assessment.report_meta = meta
-                    db.commit()
-                    logger.info(f"✓ Successfully generated from markdown (Case 3)")
-                    return HTMLResponse(content=html_content)
-            elif isinstance(report_data, dict):
-                # Fallback: Try one more time with dict data
-                logger.info(f"Case 3B: Attempting to generate from dict data for assessment {assessment_id}")
-                try:
-                    normalized = _normalize_structured_data(report_data)
-                    if not normalized.get("project_name"):
-                        normalized["project_name"] = assessment.project_name
-                    if not normalized.get("frameworks_used"):
-                        normalized["frameworks_used"] = [assessment.framework]
-                    
-                    logger.info(f"Case 3B: Normalized {len(normalized.get('all_findings', []))} findings")
-                    html_content = generate_html(normalized, assessment.project_name)
-                    logger.info(f"Case 3B: Generated HTML ({len(html_content)} chars)")
-                    
-                    assessment.report_html = html_content
-                    meta["structured"] = normalized
-                    meta["has_interactive_report"] = True
-                    assessment.report_meta = meta
-                    db.commit()
-                    logger.info(f"✓ Successfully generated from dict in Case 3B")
-                    return HTMLResponse(content=html_content)
-                except Exception as case3b_error:
-                    logger.error(f"Case 3B failed: {case3b_error}", exc_info=True)
-                    # Continue to fallback page
-        except Exception as e:
-            logger.error(f"Case 3 generation failed: {e}", exc_info=True)
-
-    # No data available
-    logger.warning(f"No data available to generate interactive report for assessment {assessment_id}")
-    logger.warning(f"Final state - report_html: {bool(assessment.report_html)}, assessment_report: {bool(assessment.assessment_report)}, type: {type(assessment.assessment_report).__name__ if assessment.assessment_report else 'None'}, structured: {bool(meta.get('structured'))}")
+            logger.error(f"Failed to parse assessment_report: {e}", exc_info=True)
+            structured_data = None
+            html_content = None
+    
+    # STEP 3: Cache and return if successful
+    if html_content and structured_data:
+        assessment.report_html = html_content
+        meta["structured"] = structured_data
+        meta["has_interactive_report"] = True
+        assessment.report_meta = meta
+        db.commit()
+        logger.info(f"✓ Successfully generated and cached interactive HTML")
+        return HTMLResponse(content=html_content)
+    
+    # STEP 4: All generation failed - return helpful error page
+    logger.error(f"❌ All generation paths failed for assessment {assessment_id}")
+    logger.error(f"State: report_html={bool(assessment.report_html)}, assessment_report={type(assessment.assessment_report).__name__ if assessment.assessment_report else None}, structured={bool(meta.get('structured'))}")
+    
     
     # Generate a fallback "empty report" HTML instead of error
     fallback_html = f"""<!DOCTYPE html>

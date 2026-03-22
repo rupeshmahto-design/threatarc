@@ -81,41 +81,154 @@ def _extract_severity_from_markdown(markdown: str) -> Dict[str, int]:
 def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
     """
     Fallback: extract findings from markdown tables.
-    Looks for rows starting with F### pattern.
+    Robustly handles multiple table formats by finding F### IDs anywhere in the table.
     """
     findings = []
-    # Match table rows with finding IDs like F001, F002, etc.
-    row_pattern = re.compile(
-        r"\|\s*(F\d{3})\s*\|\s*([^|]+)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|",
-    )
-    for match in row_pattern.finditer(markdown):
-        fid = match.group(1).strip()
-        title = match.group(2).strip()
-        sev_raw = match.group(5).strip().upper()
-        sev = "CRITICAL" if "CRITICAL" in sev_raw else "HIGH" if "HIGH" in sev_raw else "MEDIUM" if "MEDIUM" in sev_raw else "LOW"
-        findings.append({
-            "id": fid,
-            "title": title,
-            "description": title,  # Use title as description fallback
-            "severity": sev,
-            "likelihood": 3,
-            "impact": 3,
-            "risk_score": 9,
-            "priority": "P0" if sev == "CRITICAL" else "P1" if sev == "HIGH" else "P2",
-            "owner": "Security Team",
-            "timeline": "30–90 days",
-            "tactic": "",
-            "technique_id": "",
-            "tactic_id": "",
-            "doc_source": "",
-            "verbatim_evidence": "",
-            "business_impact": "",
-            "affected_systems": [],
-            "mitigation_steps": [],
-            "validation_method": "",
-            "references": [],
-        })
+    
+    # Split into lines and find table rows containing F001, F002, etc.
+    lines = markdown.split('\n')
+    header_columns = []
+    
+    for i, line in enumerate(lines):
+        # Try to identify header row first (case-insensitive)
+        if '|' in line and i < len(lines) - 1:
+            lower_line = line.lower()
+            if any(keyword in lower_line for keyword in ['finding', 'title', 'severity', 'risk']):
+                # This might be a header row
+                header_columns = [col.strip().lower() for col in line.split('|')]
+                logger.info(f"Found table header: {header_columns}")
+        
+        # Look for finding rows (contains F followed by digits)
+        if '|' in line and re.search(r'F\d{2,4}', line):
+            columns = [col.strip() for col in line.split('|')]
+            
+            # Find which column has the Finding ID
+            finding_id = None
+            finding_id_idx = -1
+            for idx, col in enumerate(columns):
+                match = re.match(r'(F\d{2,4})', col)
+                if match:
+                    finding_id = match.group(1)
+                    finding_id_idx = idx
+                    break
+            
+            if not finding_id:
+                continue
+            
+            # Extract other fields - try to be smart about column positions
+            title = ""
+            severity = "MEDIUM"
+            risk_score = 9
+            evidence_source = ""
+            business_impact = ""
+            action_required = ""
+            
+            # Try to use headers if we found them
+            if header_columns:
+                for idx, col in enumerate(columns):
+                    if idx < len(header_columns):
+                        header = header_columns[idx]
+                        col_value = col.strip()
+                        
+                        if 'title' in header or 'description' in header:
+                            title = col_value
+                        elif 'severity' in header or 'risk level' in header:
+                            severity = _extract_severity_from_text(col_value)
+                        elif 'risk score' in header or 'score' in header:
+                            try:
+                                # Handle formats like "25/25" or "9"
+                                risk_score = int(re.search(r'\d+', col_value).group())
+                            except:
+                                pass
+                        elif 'evidence' in header or 'source' in header:
+                            evidence_source = col_value
+                        elif 'business' in header or 'impact' in header:
+                            business_impact = col_value
+                        elif 'action' in header or 'mitigation' in header or 'remediation' in header:
+                            action_required = col_value
+            else:
+                # No headers - use positional logic based on common formats
+                # Common: | # | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
+                # or:     | ID | Title | Severity | Risk Score | Evidence | Impact | Action |
+                if finding_id_idx >= 0 and len(columns) > finding_id_idx:
+                    # Title is typically after Finding ID
+                    if len(columns) > finding_id_idx + 1:
+                        title = columns[finding_id_idx + 1]
+                    
+                    # Severity is typically 1-2 columns after title
+                    if len(columns) > finding_id_idx + 2:
+                        potential_sev = columns[finding_id_idx + 2]
+                        severity = _extract_severity_from_text(potential_sev)
+                    
+                    # Risk score might be next
+                    if len(columns) > finding_id_idx + 3:
+                        try:
+                            risk_score_text = columns[finding_id_idx + 3]
+                            risk_score = int(re.search(r'\d+', risk_score_text).group())
+                        except:
+                            pass
+                    
+                    # Remaining columns for evidence, impact, action
+                    if len(columns) > finding_id_idx + 4:
+                        evidence_source = columns[finding_id_idx + 4]
+                    if len(columns) > finding_id_idx + 5:
+                        business_impact = columns[finding_id_idx + 5]
+                    if len(columns) > finding_id_idx + 6:
+                        action_required = columns[finding_id_idx + 6]
+            
+            # Calculate likelihood and impact from risk score
+            #risk_score (1-25): convert to likelihood * impact
+            if risk_score >= 20:
+                likelihood, impact = 5, 5
+            elif risk_score >= 15:
+                likelihood, impact = 4, 4
+            elif risk_score >= 9:
+                likelihood, impact = 3, 3
+            elif risk_score >= 4:
+                likelihood, impact = 2, 2
+            else:
+                likelihood, impact = 1, 1
+            
+            finding = {
+                "id": finding_id,
+                "title": title or f"Finding {finding_id}",
+                "description": title or business_impact or f"Security finding {finding_id}",
+                "severity": severity,
+                "likelihood": likelihood,
+                "impact": impact,
+                "risk_score": risk_score,
+                "priority": "P0" if severity == "CRITICAL" else "P1" if severity == "HIGH" else "P2",
+                "owner": "Security Team",
+                "timeline": "30–90 days" if severity in ["CRITICAL", "HIGH"] else "90+ days",
+                "tactic": "",
+                "technique_id": "",
+                "tactic_id": "",
+                "doc_source": evidence_source,
+                "verbatim_evidence": evidence_source,
+                "business_impact": business_impact,
+                "affected_systems": [],
+                "mitigation_steps": [action_required] if action_required else [],
+                "validation_method": "",
+                "references": [],
+            }
+            findings.append(finding)
+            logger.info(f"Extracted finding: {finding_id} - {title[:50]}")
+    
     return findings
+
+
+def _extract_severity_from_text(text: str) -> str:
+    """Extract severity level from text."""
+    text_upper = text.upper()
+    if "CRITICAL" in text_upper or "CRIT" in text_upper:
+        return "CRITICAL"
+    elif "HIGH" in text_upper:
+        return "HIGH"
+    elif "MEDIUM" in text_upper or "MED" in text_upper:
+        return "MEDIUM"
+    elif "LOW" in text_upper:
+        return "LOW"
+    return "MEDIUM"
 
 
 def _extract_recommendations_from_markdown(markdown: str) -> List[Dict[str, Any]]:
