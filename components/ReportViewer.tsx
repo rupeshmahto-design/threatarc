@@ -813,7 +813,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [actionPlanItems,setActionPlanItems]=useState<ActionPlanItem[]>([]);
   const [apSaving,setApSaving]=useState(false);
   const [apSaved,setApSaved]=useState(false);
-  const [activeSection,setActiveSection]=useState("overview");
+  const [activeSection,setActiveSection]=useState("exec-summary");
   const [selectedFinding,setSelectedFinding]=useState<Finding|null>(null);
   const [activeView,setActiveView]=useState<"report"|"raw">("report");
   const [printMode,setPrintMode]=useState(false);
@@ -834,18 +834,26 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     .catch(e=>setError(`Failed to load report: ${e.message}`))
     .finally(()=>{
       setLoading(false);
-      // Always start at top so Executive Summary is visible
+      setActiveSection("exec-summary");
+      // Always start at top so Executive Summary is visible first
       setTimeout(()=>{
-        if(scrollContainerRef.current) scrollContainerRef.current.scrollTop=0;
-      }, 100);
+        if(scrollContainerRef.current){
+          scrollContainerRef.current.scrollTop=0;
+        }
+      }, 150);
     });
   },[assessmentId]);
 
   useEffect(()=>{
-    const root=scrollContainerRef.current||null;
-    const obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)setActiveSection(e.target.id);}),{root,threshold:0.2,rootMargin:"-5% 0px -60% 0px"});
-    NAV_ITEMS.forEach(item=>{const el=document.getElementById(item.id);if(el)obs.observe(el);});
-    return ()=>obs.disconnect();
+    // Delay observer setup so it doesn't override the initial exec-summary scroll
+    let obs:IntersectionObserver;
+    const timer=setTimeout(()=>{
+      const root=scrollContainerRef.current||null;
+      if(!root) return;
+      obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)setActiveSection(e.target.id);}),{root,threshold:0.2,rootMargin:"-5% 0px -60% 0px"});
+      NAV_ITEMS.forEach(item=>{const el=document.getElementById(item.id);if(el)obs.observe(el);});
+    },600);
+    return ()=>{clearTimeout(timer);obs?.disconnect();};
   },[structured]);
 
   const downloadPdf=useCallback(async()=>{
@@ -887,7 +895,14 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
 
   const addToActionPlan=useCallback((f:Finding)=>{
     setActionPlanItems(prev=>[...prev.filter(a=>a.id!==f.id),{id:f.id,title:f.title,severity:f.severity,timeline:f.timeline,assignee:f.owner||"",dueDate:"",status:"Open",notes:""}]);
-    document.getElementById("action-plan")?.scrollIntoView({behavior:"smooth"});
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("action-plan");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+    }
   },[]);
 
   if(loading) return (
