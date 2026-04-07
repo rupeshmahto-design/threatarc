@@ -230,6 +230,189 @@ def _extract_recommendations_from_markdown(markdown: str) -> List[Dict[str, Any]
     return recs
 
 
+def _extract_component_analysis_from_markdown(markdown: str) -> List[Dict[str, Any]]:
+    """
+    Extract Component-Specific Threat Analysis table from markdown.
+    Returns list of component objects with structure:
+    {
+        "component": "API Gateway",
+        "doc_source": "architecture.pdf: API Design",
+        "verbatim_quote": "Gateway exposed on public internet",
+        "critical_threats": "Unauthenticated access, DDoS, injection attacks",
+        "risk_level": "CRITICAL",
+        "mitigation_priority": "P0"
+    }
+    """
+    components = []
+    
+    # Find the Component-Specific section
+    comp_section = re.search(
+        r"#\s*COMPONENT-SPECIFIC THREAT ANALYSIS(.*?)(?=\n#\s+[A-Z]|\Z)",
+        markdown,
+        re.DOTALL | re.IGNORECASE
+    )
+    
+    if not comp_section:
+        return components
+    
+    section_text = comp_section.group(1)
+    
+    # Match table rows (skip header and separator)
+    # Table format: | Component | Document Evidence | Verbatim Quote | Critical Threats | Risk Level | Mitigation Priority |
+    row_pattern = re.compile(
+        r"\|\s*([^|\n]+?)\s*\|\s*([^|\n]+?)\s*\|\s*\"?([^|\n\"]+?)\"?\s*\|\s*([^|\n]+?)\s*\|\s*\*?\*?([A-Z]+)\*?\*?\s*\|\s*([^|\n]+?)\s*\|"
+    )
+    
+    for match in row_pattern.finditer(section_text):
+        component_name = match.group(1).strip()
+        doc_source = match.group(2).strip()
+        quote = match.group(3).strip()
+        threats = match.group(4).strip()
+        risk_level = match.group(5).strip()
+        priority = match.group(6).strip()
+        
+        # Skip header rows
+        if component_name.lower() in ["component", "---", ""]:
+            continue
+            
+        components.append({
+            "component": component_name,
+            "doc_source": doc_source,
+            "verbatim_quote": quote,
+            "critical_threats": threats,
+            "risk_level": risk_level,
+            "mitigation_priority": priority
+        })
+    
+    logger.info(f"📦 Extracted {len(components)} components from markdown")
+    return components
+
+
+def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, Any]]:
+    """
+    Extract Specialized Risk Assessments sections from markdown.
+    Returns list of specialized risk domains:
+    {
+        "domain": "AI/ML Security",
+        "icon": "🤖",
+        "findings": [
+            {"label": "Model Poisoning Risk", "value": "HIGH", "severity": "HIGH"},
+            {"label": "Data Privacy Exposure", "value": "92%", "severity": "CRITICAL"},
+            ...
+        ],
+        "summary": "5 findings",
+        "grade": "HIGH"
+    }
+    """
+    specialized = []
+    
+    # Find the Specialized Risk section
+    spec_section = re.search(
+        r"#\s*SPECIALIZED RISK ASSESSMENTS(.*?)(?=\n#\s+COMPONENT-SPECIFIC|\n#\s+[A-Z]|\Z)",
+        markdown,
+        re.DOTALL | re.IGNORECASE
+    )
+    
+    if not spec_section:
+        return specialized
+    
+    section_text = spec_section.group(1)
+    
+    # Extract subsections (e.g., ## AI/ML Security, ## Cloud Infrastructure, etc.)
+    subsection_pattern = re.compile(
+        r"##\s+([^\n]+)\n(.*?)(?=\n##\s+|\Z)",
+        re.DOTALL
+    )
+    
+    for subsection_match in subsection_pattern.finditer(section_text):
+        domain_title = subsection_match.group(1).strip()
+        domain_content = subsection_match.group(2)
+        
+        # Skip empty sections
+        if not domain_content.strip():
+            continue
+        
+        # Extract findings from bullet points or table rows
+        findings = []
+        
+        # Try table format first
+        table_row_pattern = re.compile(
+            r"\|\s*([^|\n]+?)\s*\|\s*\*?\*?([A-Z]+)\*?\*?\s*\|"
+        )
+        
+        for row_match in table_row_pattern.finditer(domain_content):
+            label = row_match.group(1).strip()
+            severity = row_match.group(2).strip()
+            
+            # Skip headers
+            if label.lower() in ["risk", "finding", "assessment", "---", ""]:
+                continue
+            
+            findings.append({
+                "label": label,
+                "value": severity,
+                "severity": severity
+            })
+        
+        # If no table, try bullet points
+        if not findings:
+            bullet_pattern = re.compile(r"[-*]\s+\*?\*?([^:*\n]+)\*?\*?:?\s*\*?\*?([A-Z]+|[0-9]+%)\*?\*?")
+            for bullet_match in bullet_pattern.finditer(domain_content):
+                label = bullet_match.group(1).strip()
+                value = bullet_match.group(2).strip()
+                
+                # Infer severity from value
+                if "CRITICAL" in value.upper() or (value.endswith("%") and int(value[:-1]) >= 80):
+                    severity = "CRITICAL"
+                elif "HIGH" in value.upper() or (value.endswith("%") and int(value[:-1]) >= 60):
+                    severity = "HIGH"
+                elif "MEDIUM" in value.upper():
+                    severity = "MEDIUM"
+                else:
+                    severity = "LOW"
+                
+                findings.append({
+                    "label": label,
+                    "value": value,
+                    "severity": severity
+                })
+        
+        # Assign icon based on domain name
+        icon = "🔒"
+        if any(kw in domain_title.lower() for kw in ["ai", "ml", "model", "machine learning"]):
+            icon = "🤖"
+        elif any(kw in domain_title.lower() for kw in ["cloud", "infrastructure", "aws", "azure"]):
+            icon = "☁️"
+        elif any(kw in domain_title.lower() for kw in ["data", "privacy", "pii"]):
+            icon = "📊"
+        elif any(kw in domain_title.lower() for kw in ["compliance", "regulatory"]):
+            icon = "⚖️"
+        elif any(kw in domain_title.lower() for kw in ["supply", "chain", "vendor"]):
+            icon = "🔗"
+        elif any(kw in domain_title.lower() for kw in ["crypto", "encryption"]):
+            icon = "🔐"
+        
+        # Calculate grade based on findings severity
+        grade = "LOW"
+        if any(f["severity"] == "CRITICAL" for f in findings):
+            grade = "CRITICAL"
+        elif any(f["severity"] == "HIGH" for f in findings):
+            grade = "HIGH"
+        elif any(f["severity"] == "MEDIUM" for f in findings):
+            grade = "MEDIUM"
+        
+        specialized.append({
+            "domain": domain_title,
+            "icon": icon,
+            "findings": findings[:5],  # Limit to 5 key findings
+            "summary": f"{len(findings)} findings",
+            "grade": grade
+        })
+    
+    logger.info(f"🎯 Extracted {len(specialized)} specialized risk domains from markdown")
+    return specialized
+
+
 def _infer_overall_rating(findings: List[Dict]) -> str:
     """Infer overall rating from findings list."""
     if any(f.get("severity") == "CRITICAL" for f in findings):
@@ -274,6 +457,11 @@ def parse_assessment_response(
         json_data.setdefault("frameworks_used", frameworks or [])
         json_data.setdefault("risk_areas_assessed", risk_areas or [])
         json_data.setdefault("project_name", project_name)
+        
+        # Extract component and specialized data from markdown even when JSON exists
+        # (Claude returns these in markdown sections, not always in JSON)
+        json_data.setdefault("component_analysis", _extract_component_analysis_from_markdown(markdown_body))
+        json_data.setdefault("specialized_risks", _extract_specialized_risks_from_markdown(markdown_body))
 
         # Ensure findings_by_severity is computed
         if "findings_by_severity" not in json_data:
@@ -327,6 +515,9 @@ def parse_assessment_response(
     logger.warning("⚠️ Using markdown fallback extraction")
     findings = _extract_findings_from_markdown(markdown_body)
     recommendations = _extract_recommendations_from_markdown(markdown_body)
+    components = _extract_component_analysis_from_markdown(markdown_body)
+    specialized_risks = _extract_specialized_risks_from_markdown(markdown_body)
+    
     sev_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for f in findings:
         sev_counts[f.get("severity", "MEDIUM")] = sev_counts.get(f.get("severity", "MEDIUM"), 0) + 1
@@ -341,12 +532,15 @@ def parse_assessment_response(
         "risk_areas_assessed": risk_areas or [],
         "all_findings": findings,
         "all_recommendations": recommendations,
+        "component_analysis": components,
+        "specialized_risks": specialized_risks,
         "kill_chains": [],
         "_parsed_via": "markdown_fallback",
     }
 
     logger.info(
-        f"⚠️ Fallback extracted: {len(findings)} findings, {len(recommendations)} recs"
+        f"⚠️ Fallback extracted: {len(findings)} findings, {len(recommendations)} recs, "
+        f"{len(components)} components, {len(specialized_risks)} specialized domains"
     )
     # Inject executive summary at the beginning
     markdown_with_summary = inject_executive_summary(markdown_body, structured, project_name)

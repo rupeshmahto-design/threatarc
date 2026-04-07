@@ -2,6 +2,8 @@
  * ReportViewer.tsx  v4.0 — Professional Enterprise Edition
  */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import ComponentSpecificSection from "./ComponentSpecificSection";
+import SpecializedRiskSection from "./SpecializedRiskSection";
 
 interface Finding {
   id: string; title: string;
@@ -21,12 +23,29 @@ interface Recommendation {
   risk_reduction_pct?: number; effort_weeks?: number; owner?: string;
   target_date?: string; steps?: string[];
 }
+interface ComponentAnalysis {
+  component: string;
+  doc_source: string;
+  verbatim_quote: string;
+  critical_threats: string;
+  risk_level: string;
+  mitigation_priority: string;
+}
+interface SpecializedRisk {
+  domain: string;
+  icon: string;
+  findings: Array<{label: string; value: string; severity: string}>;
+  summary: string;
+  grade: string;
+}
 interface StructuredData {
   overall_risk_rating: string; total_findings: number;
   findings_by_severity: {CRITICAL:number;HIGH:number;MEDIUM:number;LOW:number};
   all_findings: Finding[]; all_recommendations?: Recommendation[];
   kill_chains?: KillChain[]; frameworks_used: string[];
   risk_areas_assessed: string[]; assessment_date: string; project_name?: string;
+  component_analysis?: ComponentAnalysis[];
+  specialized_risks?: SpecializedRisk[];
 }
 interface ActionPlanItem {
   id: string; title?: string; severity?: string; timeline?: string;
@@ -74,6 +93,8 @@ const NAV_ITEMS = [
   {id:"findings",      faIcon:"fa-magnifying-glass", label:"All Findings"},
   {id:"risk-matrix",   faIcon:"fa-table-cells",     label:"Risk Priority Matrix"},
   {id:"recommendations",faIcon:"fa-shield-halved",  label:"Recommendations"},
+  {id:"specialized",   faIcon:"fa-bullseye",        label:"Specialized Risks"},
+  {id:"components",    faIcon:"fa-cubes",           label:"Component Analysis"},
   {id:"action-plan",   faIcon:"fa-list-check",      label:"Action Plan"},
 ];
 
@@ -722,7 +743,7 @@ const ActionPlanSection = ({findings,items,setItems,onSave,saving,saved}:{findin
   const sc:Record<string,string>={"Open":"#dc2626","In Progress":"#ea580c","Complete":"#16a34a","Deferred":"#94a3b8"};
   return (
     <section id="action-plan" style={SS.section}>
-      <SecHeader num="07" title="Action Plan Builder" sub="Select findings  ·  Assign owners  ·  Set due dates  ·  Track status"/>
+      <SecHeader num="10" title="Action Plan Builder" sub="Select findings  ·  Assign owners  ·  Set due dates  ·  Track status"/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontSize:13,color:"#475569"}}><strong>{items.length}</strong> item{items.length!==1?"s":""} in action plan</div>
         <button onClick={onSave} disabled={saving} style={{padding:"8px 18px",borderRadius:8,border:"none",background:saved?"#16a34a":"#2563eb",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
@@ -1068,6 +1089,16 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                   <RiskMatrixSection findings={findings}/>
                   <div style={{height:20}}/>
                   <RecommendationsSection recs={recs}/>
+                  <div style={{height:20}}/>
+                  <section id="specialized" style={SS.section}>
+                    <SecHeader num="08" title="Specialized Risk Assessments" sub={`${(structured.specialized_risks||[]).length} specialized domains analyzed`}/>
+                    <SpecializedRiskSection risks={structured.specialized_risks||[]}/>
+                  </section>
+                  <div style={{height:20}}/>
+                  <section id="components" style={SS.section}>
+                    <SecHeader num="09" title="Component-Specific Threat Analysis" sub={`${(structured.component_analysis||[]).length} architectural components assessed`}/>
+                    <ComponentSpecificSection components={structured.component_analysis||[]} onAddToPlan={(comp)=>{console.log("Add component to plan:",comp);}}/>
+                  </section>
                   <div style={{height:20}}/>
                   <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
                 </>
