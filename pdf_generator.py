@@ -494,6 +494,7 @@ def generate_pdf(report_content: str, project_name: str,
         in_code = False
 
     i = 0
+    in_executive_summary = False
     while i < len(lines):
         raw  = lines[i]
         line = raw.strip()
@@ -511,6 +512,18 @@ def generate_pdf(report_content: str, project_name: str,
             code_lines.append(re.sub(r'[^\x00-\x7F]', '', raw))
             continue
 
+        # Detect start of Executive Summary
+        if not in_executive_summary and 'Executive Summary' in line and line.startswith('#'):
+            in_executive_summary = True
+
+        # Detect end of Executive Summary (horizontal rule)
+        if in_executive_summary and line.startswith('---'):
+            flush_table()
+            flush_heading()
+            story.append(PageBreak())
+            in_executive_summary = False
+            continue
+
         # Table separator rows
         if re.match(r'^[\|\s\-:]+$', line) and '|' in line:
             continue
@@ -522,10 +535,15 @@ def generate_pdf(report_content: str, project_name: str,
             continue
 
         # H1 — buffer with divider so it stays with following content
+        # Add page break before new major sections (but not Executive Summary)
         if re.match(r'^# [^#]', line):
             flush_table()
+            flush_heading()
             text = re.sub(r'^# ', '', line)
             text = re.sub(r'[^\x00-\x7F]', '', text).strip()
+            # Add page break before section unless it's the very first or Executive Summary
+            if story and not in_executive_summary and 'Executive Summary' not in text:
+                story.append(PageBreak())
             heading_buf = [SectionDivider(color=NAVY), Spacer(1, 0.05 * inch), Paragraph(text, styles['h1'])]
             continue
 

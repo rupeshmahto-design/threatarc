@@ -61,6 +61,104 @@ def extract_markdown_body(raw_response: str) -> str:
     return cleaned.strip()
 
 
+def inject_executive_summary(markdown: str, structured_data: Dict[str, Any], project_name: str = "") -> str:
+    """
+    Inject an Executive Summary section at the beginning of the markdown report.
+    This ensures the PDF will have a proper Executive Summary page.
+    """
+    overall = structured_data.get("overall_risk_rating", "HIGH")
+    sev = structured_data.get("findings_by_severity", {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0})
+    total = structured_data.get("total_findings", 0)
+    frameworks = structured_data.get("frameworks_used", [])
+    risk_areas = structured_data.get("risk_areas_assessed", [])
+    
+    critical = sev.get("CRITICAL", 0)
+    high = sev.get("HIGH", 0)
+    medium = sev.get("MEDIUM", 0)
+    low = sev.get("LOW", 0)
+    
+    # Calculate risk percentage
+    total_risk = critical * 25 + high * 15 + medium * 8 + low * 3
+    max_possible = total * 25 if total > 0 else 1
+    risk_pct = round((total_risk / max_possible) * 100) if max_possible > 0 else 0
+    
+    # Get top findings
+    top_findings = structured_data.get("all_findings", [])[:5]
+    
+    # Build executive summary markdown
+    exec_summary = f"""# Executive Summary
+
+## Overall Risk Assessment: **{overall}**
+
+**Project:** {project_name}  
+**Risk Score:** {risk_pct}%  
+**Total Findings:** {total}  
+**Frameworks:** {', '.join(frameworks) if frameworks else 'MITRE ATT&CK'}
+
+### Finding Distribution
+
+| Severity | Count | Percentage |
+|----------|-------|------------|
+| **CRITICAL** | {critical} | {round(critical/total*100) if total > 0 else 0}% |
+| **HIGH** | {high} | {round(high/total*100) if total > 0 else 0}% |
+| **MEDIUM** | {medium} | {round(medium/total*100) if total > 0 else 0}% |
+| **LOW** | {low} | {round(low/total*100) if total > 0 else 0}% |
+
+### Risk Assessment
+
+"""
+    
+    if overall == "CRITICAL":
+        exec_summary += "**⚠️ IMMEDIATE EXECUTIVE ACTION REQUIRED**\n\n"
+        exec_summary += "Critical vulnerabilities present significant business risk requiring immediate attention. This assessment identifies serious security gaps that could lead to major incidents.\n\n"
+    elif overall == "HIGH":
+        exec_summary += "**⚠️ URGENT ACTION REQUIRED**\n\n"
+        exec_summary += "Significant vulnerabilities require urgent attention within 30 days. Multiple high-risk findings demand prioritized remediation.\n\n"
+    else:
+        exec_summary += "Moderate risk identified. Address findings per the recommended timeline to maintain security posture.\n\n"
+    
+    # Add top findings
+    if top_findings:
+        exec_summary += "### Top Priority Findings\n\n"
+        exec_summary += "| ID | Title | Severity | Risk Score |\n"
+        exec_summary += "|-----|-------|----------|------------|\n"
+        for f in top_findings:
+            fid = f.get("id", "F???")
+            title = f.get("title", "Untitled")[:60]
+            severity = f.get("severity", "MEDIUM")
+            risk_score = f.get("risk_score", 9)
+            exec_summary += f"| {fid} | {title} | **{severity}** | {risk_score}/25 |\n"
+        exec_summary += "\n"
+    
+    # Add immediate actions
+    p0_recs = [r for r in structured_data.get("all_recommendations", []) if r.get("priority") == "P0"][:3]
+    if p0_recs:
+        exec_summary += "### Immediate Actions (0-30 Days)\n\n"
+        for i, rec in enumerate(p0_recs, 1):
+            title = rec.get("title", "Untitled")
+            risk_reduction = rec.get("risk_reduction_pct", 0)
+            effort = rec.get("effort_weeks", 0)
+            exec_summary += f"{i}. **{title}**\n"
+            if risk_reduction:
+                exec_summary += f"   - Risk Reduction: {risk_reduction}%\n"
+            if effort:
+                exec_summary += f"   - Effort: {effort} weeks\n"
+            exec_summary += "\n"
+    
+    # Add scope info
+    if risk_areas:
+        exec_summary += f"### Assessment Scope\n\n"
+        exec_summary += f"**Risk Areas Assessed:** {', '.join(risk_areas[:5])}\n"
+        if frameworks:
+            exec_summary += f"**Frameworks Used:** {', '.join(frameworks)}\n"
+        exec_summary += "\n"
+    
+    exec_summary += "---\n\n"
+    
+    # Inject at the beginning of the report
+    return exec_summary + markdown
+
+
 # ─── MARKDOWN FALLBACK EXTRACTION ─────────────────────────────────────────────
 
 def _extract_severity_from_markdown(markdown: str) -> Dict[str, int]:
@@ -221,7 +319,9 @@ def parse_assessment_response(
             f"{len(json_data['all_recommendations'])} recommendations, "
             f"rating={json_data['overall_risk_rating']}"
         )
-        return json_data, markdown_body
+        # Inject executive summary at the beginning
+        markdown_with_summary = inject_executive_summary(markdown_body, json_data, project_name)
+        return json_data, markdown_with_summary
 
     # 2. Fallback: extract from markdown
     logger.warning("⚠️ Using markdown fallback extraction")
@@ -248,4 +348,6 @@ def parse_assessment_response(
     logger.info(
         f"⚠️ Fallback extracted: {len(findings)} findings, {len(recommendations)} recs"
     )
-    return structured, markdown_body
+    # Inject executive summary at the beginning
+    markdown_with_summary = inject_executive_summary(markdown_body, structured, project_name)
+    return structured, markdown_with_summary
