@@ -877,6 +877,9 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
         }
         // Enable observer after content settles
         setTimeout(()=>setObserverEnabled(true), 1000);
+      }, 100);
+    });
+  },[assessmentId]);
 
   useEffect(()=>{
     if(!observerEnabled) return;
