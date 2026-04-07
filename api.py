@@ -876,6 +876,73 @@ async def get_structured_data(
     }
 
 
+@app.post("/reports/{assessment_id}/reprocess")
+async def reprocess_assessment(
+    assessment_id: int,
+    user: User = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Force re-parse of an existing assessment with the latest extraction logic.
+    This updates structured data to include new sections like specialized_risks and component_analysis.
+    """
+    assessment = db.query(ThreatAssessment).filter(
+        ThreatAssessment.id == assessment_id,
+        ThreatAssessment.organization_id == user.organization_id
+    ).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    if not assessment.assessment_report:
+        raise HTTPException(status_code=400, detail="No raw report data to reprocess")
+
+    try:
+        # Re-parse with latest extraction logic
+        meta = assessment.report_meta or {}
+        structured_data, _, _ = _parse_and_generate(
+            raw_report=assessment.assessment_report,
+            project_name=assessment.project_name,
+            frameworks=meta.get("frameworks", [assessment.framework]),
+            risk_focus_areas=meta.get("risk_areas", []),
+        )
+        
+        # Update structured data in database
+        meta["structured"] = structured_data
+        meta["reprocessed_at"] = datetime.utcnow().isoformat()
+        assessment.report_meta = meta
+        db.commit()
+        
+        # Log the reprocessing
+        audit = AuditLog(
+            user_id=user.id,
+            user_email=user.email,
+            organization_id=user.organization_id,
+            action="assessment.reprocess",
+            resource_type="ThreatAssessment",
+            resource_id=assessment.id,
+            description=f"Reprocessed assessment '{assessment.project_name}' with latest extraction logic",
+            status="success",
+        )
+        db.add(audit)
+        db.commit()
+        
+        return {
+            "message": "Assessment reprocessed successfully",
+            "assessment_id": assessment_id,
+            "project_name": assessment.project_name,
+            "structured_summary": {
+                "total_findings": structured_data.get("total_findings", 0),
+                "recommendations": len(structured_data.get("all_recommendations", [])),
+                "specialized_risks": len(structured_data.get("specialized_risks", [])),
+                "component_analysis": len(structured_data.get("component_analysis", [])),
+                "kill_chains": len(structured_data.get("kill_chains", [])),
+            }
+        }
+    except Exception as e:
+        logger.error(f"Reprocess failed for assessment {assessment_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to reprocess assessment: {str(e)}")
+
+
 @app.post("/reports/{assessment_id}/action-plan")
 async def save_action_plan(
     assessment_id: int,

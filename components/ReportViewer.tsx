@@ -999,6 +999,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState<string|null>(null);
   const [pdfLoading,setPdfLoading]=useState(false);
+  const [reprocessing,setReprocessing]=useState(false);
   const [actionPlanItems,setActionPlanItems]=useState<ActionPlanItem[]>([]);
   const [apSaving,setApSaving]=useState(false);
   const [apSaved,setApSaved]=useState(false);
@@ -1064,6 +1065,19 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     }catch(e:any){alert(`PDF download failed: ${e.message}`);}
     finally{setPdfLoading(false);}
   },[assessmentId,projectName]);
+
+  const reprocessAssessment=useCallback(async()=>{
+    if(!confirm('Re-parse this assessment with the latest extraction logic? This will update sections like Specialized Risks and Component Analysis.'))return;
+    setReprocessing(true);
+    try{
+      const resp=await fetch(`${apiBase}/reports/${assessmentId}/reprocess`,{method:"POST",headers});
+      if(!resp.ok) throw new Error("Reprocessing failed");
+      const result=await resp.json();
+      alert(`✅ Assessment reprocessed!\n\nComponents: ${result.structured_summary.component_analysis}\nSpecialized Risks: ${result.structured_summary.specialized_risks}\nKill Chains: ${result.structured_summary.kill_chains}\n\nRefreshing page...`);
+      window.location.reload();
+    }catch(e:any){alert(`Reprocess failed: ${e.message}`);}
+    finally{setReprocessing(false);}
+  },[assessmentId]);
 
   const saveActionPlan=useCallback(async()=>{
     setApSaving(true);
@@ -1280,6 +1294,10 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
           <button onClick={()=>setActiveView(v=>v==="report"?"raw":"report")} style={{padding:"8px 14px",borderRadius:7,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
             <i className={`fas ${activeView==="report"?"fa-code":"fa-chart-bar"}`} style={{fontSize:11}}/>
             {activeView==="report"?"Raw Markdown":"Interactive Report"}
+          </button>
+          <button onClick={reprocessAssessment} disabled={reprocessing} title="Re-parse with latest extraction logic to add new sections" style={{padding:"8px 14px",borderRadius:7,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,opacity:reprocessing?0.7:1}}>
+            <i className={`fas ${reprocessing?"fa-circle-notch fa-spin":"fa-rotate"}`} style={{fontSize:11}}/>
+            {reprocessing?"Reprocessing…":"Reprocess"}
           </button>
           <button onClick={downloadPdf} disabled={pdfLoading} style={{padding:"8px 16px",borderRadius:7,border:"none",background:BLUE,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,opacity:pdfLoading?0.7:1}}>
             <i className={`fas ${pdfLoading?"fa-circle-notch fa-spin":"fa-download"}`} style={{fontSize:11}}/>
