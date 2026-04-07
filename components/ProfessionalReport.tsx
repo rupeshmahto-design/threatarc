@@ -99,8 +99,13 @@ const ProfessionalReport: React.FC<ProfessionalReportProps> = ({
       {/* DOCUMENT REGISTRY PAGE */}
       <div style={{ 
         padding: '50px',
+<<<<<<< HEAD
         pageBreakAfter: 'always',
         pageBreakBefore: 'always',
+=======
+        pageBreakBefore: 'always',
+        pageBreakInside: 'avoid',
+>>>>>>> origin/claude-remote
         boxSizing: 'border-box'
       }}>
         <h2 style={{ 
@@ -204,8 +209,13 @@ const ProfessionalReport: React.FC<ProfessionalReportProps> = ({
       {/* EXECUTIVE SUMMARY PAGE */}
       <div className="summary-page" style={{ 
         padding: '50px',
+<<<<<<< HEAD
         pageBreakAfter: 'always',
         pageBreakBefore: 'always',
+=======
+        pageBreakBefore: 'always',
+        pageBreakInside: 'avoid',
+>>>>>>> origin/claude-remote
         boxSizing: 'border-box'
       }}>
         <h2 style={{ 
@@ -281,8 +291,13 @@ const ProfessionalReport: React.FC<ProfessionalReportProps> = ({
       {/* KEY FINDINGS PAGE */}
       <div className="findings-page" style={{ 
         padding: '50px',
+<<<<<<< HEAD
         pageBreakAfter: 'always',
         pageBreakBefore: 'always',
+=======
+        pageBreakBefore: 'always',
+        pageBreakInside: 'avoid',
+>>>>>>> origin/claude-remote
         boxSizing: 'border-box'
       }}>
         <h2 style={{ 
@@ -386,8 +401,13 @@ const ProfessionalReport: React.FC<ProfessionalReportProps> = ({
       {/* BENEFITS REALIZATION PAGE */}
       <div className="benefits-page" style={{ 
         padding: '50px',
+<<<<<<< HEAD
         pageBreakAfter: 'always',
         pageBreakBefore: 'always',
+=======
+        pageBreakBefore: 'always',
+        pageBreakInside: 'avoid',
+>>>>>>> origin/claude-remote
         boxSizing: 'border-box'
       }}>
         <h2 style={{ 
@@ -534,8 +554,13 @@ const ProfessionalReport: React.FC<ProfessionalReportProps> = ({
       {/* STRATEGIC QUESTIONS PAGE */}
       <div className="questions-page" style={{ 
         padding: '50px',
+<<<<<<< HEAD
         pageBreakAfter: 'always',
         pageBreakBefore: 'always',
+=======
+        pageBreakBefore: 'always',
+        pageBreakInside: 'avoid',
+>>>>>>> origin/claude-remote
         boxSizing: 'border-box'
       }}>
         <h2 style={{ 

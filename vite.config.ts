@@ -12,5 +12,20 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    minify: false, // Disable minification to debug
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        inlineDynamicImports: true, // Force everything inline
+      }
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
   }
 })
