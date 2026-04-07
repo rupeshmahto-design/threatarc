@@ -14,13 +14,18 @@ export default defineConfig({
     }
   },
   build: {
+    minify: false, // Disable minification to debug
     rollupOptions: {
       output: {
-        manualChunks: undefined, // Disable automatic code splitting to avoid circular deps
+        manualChunks: undefined,
+        inlineDynamicImports: true, // Force everything inline
       }
     },
     commonjsOptions: {
       transformMixedEsModules: true
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
   }
 })
