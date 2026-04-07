@@ -133,7 +133,7 @@ const ExecutiveSummary = ({
   const riskDesc = overall==="CRITICAL"?"Immediate executive action required. Critical vulnerabilities present significant business risk.":overall==="HIGH"?"Significant vulnerabilities require urgent attention within 30 days.":"Moderate risk identified. Address findings per the recommended timeline.";
 
   return (
-    <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:16}}>
+    <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:0,minHeight:"60vh"}}>  
       {/* ── Executive header ─────────────────────────────────────────── */}
       <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#1e3a5f 60%,${BLUE} 100%)`,padding:"20px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16,borderRadius:"10px 10px 0 0"}}>
         <div>
@@ -849,6 +849,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [selectedFinding,setSelectedFinding]=useState<Finding|null>(null);
   const [activeView,setActiveView]=useState<"report"|"raw">("report");
   const [printMode,setPrintMode]=useState(false);
+  const [observerEnabled,setObserverEnabled]=useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const tok=token||localStorage.getItem("token")||localStorage.getItem("access_token")||"";
@@ -857,6 +858,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   useEffect(()=>{
     if(!assessmentId) return;
     setLoading(true);
+    setObserverEnabled(false);
     Promise.all([
       fetch(`${apiBase}/reports/${assessmentId}/structured`,{headers}).then(r=>r.json()),
       fetch(`${apiBase}/reports/${assessmentId}`,{headers}).then(r=>r.json()),
@@ -871,24 +873,21 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
       setTimeout(()=>{
         if(scrollContainerRef.current){
           scrollContainerRef.current.scrollTop=0;
-          // Ensure executive summary stays active
           setActiveSection("exec-summary");
         }
-      }, 100);
-    });
-  },[assessmentId]);
+        // Enable observer after content settles
+        setTimeout(()=>setObserverEnabled(true), 1000);
 
   useEffect(()=>{
-    // Delay observer setup so it doesn't override the initial exec-summary scroll
-    let obs:IntersectionObserver;
-    const timer=setTimeout(()=>{
-      const root=scrollContainerRef.current||null;
-      if(!root) return;
-      obs=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)setActiveSection(e.target.id);}),{root,threshold:0.15,rootMargin:"0% 0px -50% 0px"});
-      NAV_ITEMS.forEach(item=>{const el=document.getElementById(item.id);if(el)obs.observe(el);});
-    },800);
-    return ()=>{clearTimeout(timer);obs?.disconnect();};
-  },[structured]);
+    if(!observerEnabled) return;
+    const root=scrollContainerRef.current||null;
+    if(!root) return;
+    const obs=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{if(e.isIntersecting&&e.intersectionRatio>0.15)setActiveSection(e.target.id);});
+    },{root,threshold:[0.15,0.5],rootMargin:"0px 0px -40% 0px"});
+    NAV_ITEMS.forEach(item=>{const el=document.getElementById(item.id);if(el)obs.observe(el);});
+    return ()=>obs.disconnect();
+  },[observerEnabled]);
 
   const downloadPdf=useCallback(async()=>{
     setPdfLoading(true);
