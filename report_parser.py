@@ -175,12 +175,12 @@ def _extract_severity_from_markdown(markdown: str) -> Dict[str, int]:
 def _extract_findings_from_markdown(markdown: str) -> List[Dict[str, Any]]:
     """
     Fallback: extract findings from markdown tables.
-    Looks for rows starting with F### pattern.
+    Looks for rows starting with finding ID pattern (F###, T-AGE-###, etc.).
     """
     findings = []
-    # Match table rows with finding IDs like F001, F002, etc.
+    # Match table rows with finding IDs like F001, T-AGE-001, etc.
     row_pattern = re.compile(
-        r"\|\s*(F\d{3})\s*\|\s*([^|]+)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|",
+        r"\|\s*([A-Z0-9\-]+)\s*\|\s*([^|]+)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|",
     )
     for match in row_pattern.finditer(markdown):
         fid = match.group(1).strip()
