@@ -9,8 +9,11 @@ cmds = [
 
 [phases.build]
 cmds = [
+    "echo '=== Cleaning old build ==='",
+    "rm -rf dist",
     "echo '=== Building React Frontend v2 ==='",
     "npx vite build",
+    "ls -la dist/assets/",
     "echo '=== Frontend build complete ==='"
 ]
 
