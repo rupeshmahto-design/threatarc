@@ -352,7 +352,7 @@ def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, An
         # NEW: Match the detailed 9-column table format
         # | Threat ID | Evidence Source | Verbatim Quote | Threat Description | Likelihood | Impact | Risk Score | Priority | Mitigation |
         detailed_row_pattern = re.compile(
-            r"\|\s*([F\d]+)\s*\|\s*([^|]+?)\s*\|\s*\"([^\"]*)\"\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([P\d]+)\s*\|\s*([^|]+?)\s*\|",
+            r"\|\s*([A-Z0-9\-]+)\s*\|\s*([^|]+?)\s*\|\s*\"([^\"]*)\"\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([P\d]+)\s*\|\s*([^|]+?)\s*\|",
             re.MULTILINE
         )
         
