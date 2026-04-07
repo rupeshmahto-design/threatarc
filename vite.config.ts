@@ -12,5 +12,15 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined, // Disable automatic code splitting to avoid circular deps
+      }
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
   }
 })
