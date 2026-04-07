@@ -296,34 +296,43 @@ def _extract_component_analysis_from_markdown(markdown: str) -> List[Dict[str, A
 def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, Any]]:
     """
     Extract Specialized Risk Assessments sections from markdown.
+    NEW FORMAT: Parses detailed tables with columns:
+    Threat ID | Evidence Source | Verbatim Quote | Threat Description | Likelihood | Impact | Risk Score | Priority | Mitigation Strategy
+    
     Returns list of specialized risk domains:
     {
-        "domain": "AI/ML Security",
+        "domain": "Agentic AI Risk",
         "icon": "🤖",
         "findings": [
-            {"label": "Model Poisoning Risk", "value": "HIGH", "severity": "HIGH"},
-            {"label": "Data Privacy Exposure", "value": "92%", "severity": "CRITICAL"},
+            {
+                "label": "Prompt Injection Vulnerabilities",
+                "value": "CRITICAL",
+                "severity": "CRITICAL",
+                "threat_id": "F001",
+                "finding_ref": "F001"
+            },
             ...
         ],
-        "summary": "5 findings",
-        "grade": "HIGH"
+        "summary": "5 critical threats identified",
+        "grade": "CRITICAL"
     }
     """
     specialized = []
     
     # Find the Specialized Risk section
     spec_section = re.search(
-        r"#\s*SPECIALIZED RISK ASSESSMENTS(.*?)(?=\n#\s+COMPONENT-SPECIFIC|\n#\s+[A-Z]|\Z)",
+        r"#\s*SPECIALIZED RISK ASSESSMENTS(.*?)(?=\n#\s+COMPONENT-SPECIFIC|\n#\s+ATTACK SCENARIOS|\n#\s+[A-Z]|\Z)",
         markdown,
         re.DOTALL | re.IGNORECASE
     )
     
     if not spec_section:
+        logger.warning("⚠️ SPECIALIZED RISK ASSESSMENTS section not found")
         return specialized
     
     section_text = spec_section.group(1)
     
-    # Extract subsections (e.g., ## AI/ML Security, ## Cloud Infrastructure, etc.)
+    # Extract subsections (e.g., ## Agentic AI Risk, ## Cloud Infrastructure, etc.)
     subsection_pattern = re.compile(
         r"##\s+([^\n]+)\n(.*?)(?=\n##\s+|\Z)",
         re.DOTALL
@@ -337,58 +346,102 @@ def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, An
         if not domain_content.strip():
             continue
         
-        # Extract findings from bullet points or table rows
         findings = []
+        highest_severity = "LOW"
         
-        # Try table format first
-        table_row_pattern = re.compile(
-            r"\|\s*([^|\n]+?)\s*\|\s*\*?\*?([A-Z]+)\*?\*?\s*\|"
+        # NEW: Match the detailed 9-column table format
+        # | Threat ID | Evidence Source | Verbatim Quote | Threat Description | Likelihood | Impact | Risk Score | Priority | Mitigation |
+        detailed_row_pattern = re.compile(
+            r"\|\s*([F\d]+)\s*\|\s*([^|]+?)\s*\|\s*\"([^\"]*)\"\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*([P\d]+)\s*\|\s*([^|]+?)\s*\|",
+            re.MULTILINE
         )
         
-        for row_match in table_row_pattern.finditer(domain_content):
-            label = row_match.group(1).strip()
-            severity = row_match.group(2).strip()
+        for match in detailed_row_pattern.finditer(domain_content):
+            threat_id = match.group(1).strip()
+            evidence_source = match.group(2).strip()
+            quote = match.group(3).strip()
+            description = match.group(4).strip()
+            likelihood = int(match.group(5).strip())
+            impact = int(match.group(6).strip())
+            risk_score = int(match.group(7).strip())
+            priority = match.group(8).strip()
+            mitigation = match.group(9).strip()
             
             # Skip headers
-            if label.lower() in ["risk", "finding", "assessment", "---", ""]:
+            if threat_id.lower() in ["threat", "id", "---"]:
                 continue
+            
+            # Determine severity from risk score
+            if risk_score >= 20:
+                severity = "CRITICAL"
+            elif risk_score >= 12:
+                severity = "HIGH"
+            elif risk_score >= 6:
+                severity = "MEDIUM"
+            else:
+                severity = "LOW"
+            
+            # Track highest severity for grade
+            severity_order = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+            if severity_order.get(severity, 0) > severity_order.get(highest_severity, 0):
+                highest_severity = severity
+            
+            # Extract short label from description (first few words)
+            label_words = description.split()[:6]
+            label = " ".join(label_words)
+            if len(description.split()) > 6:
+                label += "..."
             
             findings.append({
                 "label": label,
                 "value": severity,
-                "severity": severity
+                "severity": severity,
+                "threat_id": threat_id,
+                "finding_ref": threat_id,
+                "description": description,
+                "evidence_source": evidence_source,
+                "quote": quote,
+                "likelihood": likelihood,
+                "impact": impact,
+                "risk_score": risk_score,
+                "priority": priority,
+                "mitigation": mitigation
             })
         
-        # If no table, try bullet points
+        # If no detailed table found, try old simple format
         if not findings:
-            bullet_pattern = re.compile(r"[-*]\s+\*?\*?([^:*\n]+)\*?\*?:?\s*\*?\*?([A-Z]+|[0-9]+%)\*?\*?")
-            for bullet_match in bullet_pattern.finditer(domain_content):
-                label = bullet_match.group(1).strip()
-                value = bullet_match.group(2).strip()
+            simple_row_pattern = re.compile(
+                r"\|\s*([^|\n]+?)\s*\|\s*\*?\*?([A-Z]+)\*?\*?\s*\|"
+            )
+            
+            for row_match in simple_row_pattern.finditer(domain_content):
+                label = row_match.group(1).strip()
+                severity = row_match.group(2).strip()
                 
-                # Infer severity from value
-                if "CRITICAL" in value.upper() or (value.endswith("%") and int(value[:-1]) >= 80):
-                    severity = "CRITICAL"
-                elif "HIGH" in value.upper() or (value.endswith("%") and int(value[:-1]) >= 60):
-                    severity = "HIGH"
-                elif "MEDIUM" in value.upper():
-                    severity = "MEDIUM"
-                else:
-                    severity = "LOW"
+                # Skip headers
+                if label.lower() in ["risk", "finding", "assessment", "---", ""]:
+                    continue
                 
-                # Try to extract finding reference from label
+                # Extract finding reference from label
                 finding_match = re.search(r'\b(F\d{3})\b', label)
                 
                 findings.append({
                     "label": label,
-                    "value": value,
+                    "value": severity,
                     "severity": severity,
                     "finding_ref": finding_match.group(1) if finding_match else None
                 })
+                
+                severity_order = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+                if severity_order.get(severity, 0) > severity_order.get(highest_severity, 0):
+                    highest_severity = severity
+        
+        if not findings:
+            continue
         
         # Assign icon based on domain name
         icon = "🔒"
-        if any(kw in domain_title.lower() for kw in ["ai", "ml", "model", "machine learning"]):
+        if any(kw in domain_title.lower() for kw in ["ai", "ml", "model", "machine learning", "agentic", "agent"]):
             icon = "🤖"
         elif any(kw in domain_title.lower() for kw in ["cloud", "infrastructure", "aws", "azure"]):
             icon = "☁️"
@@ -420,6 +473,101 @@ def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, An
     
     logger.info(f"🎯 Extracted {len(specialized)} specialized risk domains from markdown")
     return specialized
+
+
+def _extract_kill_chains_from_markdown(markdown: str) -> List[Dict[str, Any]]:
+    """
+    Extract Attack Scenarios & Kill Chains from markdown.
+    Parses sections like:
+    
+    # ATTACK SCENARIOS & KILL CHAINS
+    
+    ## Scenario 1: [Title]
+    **Profile:** ...
+    **Overall Risk Score:** 20/25
+    **Primary Evidence:** ...
+    
+    | Phase | Technique ID | Document Evidence | ... |
+    
+    Returns list of kill chain scenarios.
+    """
+    kill_chains = []
+    
+    # Find the Attack Scenarios section
+    scenarios_section = re.search(
+        r"#\s*ATTACK SCENARIOS[^\n]*KILL CHAINS(.*?)(?=\n#\s+COMPREHENSIVE RISK|\n#\s+[A-Z]|\Z)",
+        markdown,
+        re.DOTALL | re.IGNORECASE
+    )
+    
+    if not scenarios_section:
+        logger.warning("⚠️ ATTACK SCENARIOS & KILL CHAINS section not found")
+        return kill_chains
+    
+    section_text = scenarios_section.group(1)
+    
+    # Extract individual scenarios (## Scenario 1, ## Scenario 2, etc.)
+    scenario_pattern = re.compile(
+        r"##\s+Scenario\s+\d+:\s+([^\n]+)\n(.*?)(?=\n##\s+Scenario|\Z)",
+        re.DOTALL | re.IGNORECASE
+    )
+    
+    for scenario_match in scenario_pattern.finditer(section_text):
+        title = scenario_match.group(1).strip()
+        scenario_content = scenario_match.group(2)
+        
+        # Extract metadata
+        profile_match = re.search(r"\*\*Profile:\*\*\s*([^\n]+)", scenario_content)
+        risk_score_match = re.search(r"\*\*Overall Risk Score:\*\*\s*(\d+)/25", scenario_content)
+        evidence_match = re.search(r"\*\*Primary Evidence:\*\*\s*([^\n]+)", scenario_content)
+        
+        profile = profile_match.group(1).strip() if profile_match else ""
+        risk_score = int(risk_score_match.group(1)) if risk_score_match else 15
+        evidence = evidence_match.group(1).strip() if evidence_match else ""
+        
+        # Extract phases from table
+        # | Phase | Technique ID | Document Evidence | Verbatim Quote | Description | Detection Window | Mitigation |
+        phases = []
+        phase_pattern = re.compile(
+            r"\|\s*([^|]+?)\s*\|\s*([T\d.]+)\s*\|\s*([^|]*?)\s*\|\s*\"?([^\"]*?)\"?\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|",
+            re.MULTILINE
+        )
+        
+        for phase_match in phase_pattern.finditer(scenario_content):
+            phase_name = phase_match.group(1).strip()
+            technique_id = phase_match.group(2).strip()
+            doc_evidence = phase_match.group(3).strip()
+            quote = phase_match.group(4).strip()
+            description = phase_match.group(5).strip()
+            detection = phase_match.group(6).strip()
+            mitigation = phase_match.group(7).strip()
+            
+            # Skip headers
+            if phase_name.lower() in ["phase", "---"]:
+                continue
+            
+            phases.append({
+                "phase": phase_name,
+                "technique_id": technique_id,
+                "evidence_source": doc_evidence,
+                "quote": quote,
+                "description": description,
+                "detection_window": detection,
+                "mitigation": mitigation,
+                "severity": "CRITICAL" if risk_score >= 20 else "HIGH" if risk_score >= 12 else "MEDIUM"
+            })
+        
+        if phases:
+            kill_chains.append({
+                "title": title,
+                "profile": profile,
+                "risk_score": risk_score,
+                "evidence": evidence,
+                "phases": phases
+            })
+    
+    logger.info(f"🎯 Extracted {len(kill_chains)} attack scenarios from markdown")
+    return kill_chains
 
 
 def _infer_overall_rating(findings: List[Dict]) -> str:
@@ -467,10 +615,17 @@ def parse_assessment_response(
         json_data.setdefault("risk_areas_assessed", risk_areas or [])
         json_data.setdefault("project_name", project_name)
         
-        # Extract component and specialized data from markdown even when JSON exists
+        # Extract component, specialized, and kill chain data from markdown even when JSON exists
         # (Claude returns these in markdown sections, not always in JSON)
         json_data.setdefault("component_analysis", _extract_component_analysis_from_markdown(markdown_body))
         json_data.setdefault("specialized_risks", _extract_specialized_risks_from_markdown(markdown_body))
+        
+        # Allow kill_chains override from markdown (more detailed than JSON)
+        markdown_kill_chains = _extract_kill_chains_from_markdown(markdown_body)
+        if markdown_kill_chains:
+            json_data["kill_chains"] = markdown_kill_chains
+        elif not json_data["kill_chains"]:
+            json_data["kill_chains"] = markdown_kill_chains
 
         # Ensure findings_by_severity is computed
         if "findings_by_severity" not in json_data:
@@ -526,6 +681,7 @@ def parse_assessment_response(
     recommendations = _extract_recommendations_from_markdown(markdown_body)
     components = _extract_component_analysis_from_markdown(markdown_body)
     specialized_risks = _extract_specialized_risks_from_markdown(markdown_body)
+    kill_chains = _extract_kill_chains_from_markdown(markdown_body)
     
     sev_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for f in findings:
@@ -543,13 +699,13 @@ def parse_assessment_response(
         "all_recommendations": recommendations,
         "component_analysis": components,
         "specialized_risks": specialized_risks,
-        "kill_chains": [],
+        "kill_chains": kill_chains,
         "_parsed_via": "markdown_fallback",
     }
 
     logger.info(
         f"⚠️ Fallback extracted: {len(findings)} findings, {len(recommendations)} recs, "
-        f"{len(components)} components, {len(specialized_risks)} specialized domains"
+        f"{len(components)} components, {len(specialized_risks)} specialized domains, {len(kill_chains)} scenarios"
     )
     # Inject executive summary at the beginning
     markdown_with_summary = inject_executive_summary(markdown_body, structured, project_name)
