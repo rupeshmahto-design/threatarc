@@ -971,37 +971,28 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:PAGE_BG}}>
       <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}*{box-sizing:border-box;}@media print{nav,button,.no-print{display:none!important;}}`}</style>
 
-      {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#152d54 100%)`,borderRadius:"12px 12px 0 0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        {/* Left: brand + title */}
-        <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <div style={{width:36,height:36,background:BLUE,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            <i className="fas fa-shield-halved" style={{color:"#fff",fontSize:16}}/>
-          </div>
-          <div>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
-              <h2 style={{fontSize:15,fontWeight:800,color:"#fff",letterSpacing:-0.3,margin:0}}>Threat Assessment Report</h2>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:3,background:"#EF4444",color:"#fff",letterSpacing:0.8}}>CONFIDENTIAL</span>
-            </div>
-            <p style={{fontSize:12,color:"rgba(255,255,255,.6)",margin:0}}>{projectName}&nbsp;&middot;&nbsp;<span style={{color:SEV_COLOR[overall]||"#EA580C",fontWeight:700}}>{overall} RISK</span>&nbsp;&middot;&nbsp;{findings.length} findings</p>
-          </div>
+      {/* ── Action bar (slim — title already shown by parent) ──────────── */}
+      <div style={{background:`${NAVY}`,borderRadius:"12px 12px 0 0",padding:"10px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        {/* Left: project meta */}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:3,background:"#EF4444",color:"#fff",letterSpacing:0.8}}>CONFIDENTIAL</span>
+          <span style={{fontSize:12,color:"rgba(255,255,255,.6)"}}>{projectName}&nbsp;&middot;&nbsp;<span style={{color:SEV_COLOR[overall]||"#EA580C",fontWeight:700}}>{overall} RISK</span>&nbsp;&middot;&nbsp;{findings.length} findings</span>
         </div>
-        {/* Right: actions */}
+        {/* Right: severity chips + actions */}
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-          {/* Severity chips */}
           <div style={{display:"flex",gap:4,marginRight:4}}>
             {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>(
-              <div key={s} style={{textAlign:"center",padding:"4px 10px",borderRadius:6,background:`rgba(255,255,255,.08)`,border:`1px solid rgba(255,255,255,.12)`}}>
-                <div style={{fontSize:14,fontWeight:900,color:SEV_COLOR[s],lineHeight:1}}>{sev[s]||0}</div>
+              <div key={s} style={{textAlign:"center",padding:"3px 9px",borderRadius:6,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.12)"}}>
+                <div style={{fontSize:13,fontWeight:900,color:SEV_COLOR[s],lineHeight:1}}>{sev[s]||0}</div>
                 <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,.45)",textTransform:"uppercase",marginTop:1}}>{s.slice(0,4)}</div>
               </div>
             ))}
           </div>
-          <button onClick={()=>setActiveView(v=>v==="report"?"raw":"report")} style={{padding:"8px 14px",borderRadius:7,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+          <button onClick={()=>setActiveView(v=>v==="report"?"raw":"report")} style={{padding:"7px 13px",borderRadius:7,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
             <i className={`fas ${activeView==="report"?"fa-code":"fa-chart-bar"}`} style={{fontSize:11}}/>
             {activeView==="report"?"Raw Markdown":"Interactive Report"}
           </button>
-          <button onClick={downloadPdf} disabled={pdfLoading} style={{padding:"8px 16px",borderRadius:7,border:"none",background:BLUE,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,opacity:pdfLoading?0.7:1}}>
+          <button onClick={downloadPdf} disabled={pdfLoading} style={{padding:"7px 15px",borderRadius:7,border:"none",background:BLUE,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,opacity:pdfLoading?0.7:1}}>
             <i className={`fas ${pdfLoading?"fa-circle-notch fa-spin":"fa-download"}`} style={{fontSize:11}}/>
             {pdfLoading?"Generating PDF…":"Download PDF"}
           </button>
@@ -1015,7 +1006,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
       ):(
         <div style={{display:"flex",background:PAGE_BG}}>
           {/* ── Left sidebar ────────────────────────────────────────────── */}
-          <nav style={{width:220,flexShrink:0,background:NAVY,padding:"20px 0",position:"sticky",top:0,height:"calc(100vh - 120px)",overflowY:"auto",display:"flex",flexDirection:"column"}}>
+          <nav style={{width:220,flexShrink:0,background:NAVY,padding:"20px 0",position:"sticky",top:64,height:"calc(100vh - 210px)",overflowY:"auto",display:"flex",flexDirection:"column"}}>
             {/* Section label */}
             <div style={{padding:"0 16px 14px",fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"rgba(255,255,255,.3)",textTransform:"uppercase",fontWeight:600,letterSpacing:1.2}}>Report Sections</div>
             {NAV_ITEMS.map(item=>{
@@ -1055,7 +1046,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
           </nav>
 
           {/* ── Main content ─────────────────────────────────────────────── */}
-          <div ref={scrollContainerRef} style={{flex:1,padding:"20px 24px",overflowY:"auto",display:"flex",flexDirection:"column",gap:20,maxHeight:"calc(100vh - 120px)"}}>
+          <div ref={scrollContainerRef} style={{flex:1,padding:"20px 24px",overflowY:"auto",display:"flex",flexDirection:"column",gap:20,maxHeight:"calc(100vh - 210px)"}}>
             {structured?(
               <>
                 <ExecutiveSummary data={structured} projectName={projectName} onPrint={printExecSummary}/>
