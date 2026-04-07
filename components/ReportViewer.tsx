@@ -133,7 +133,7 @@ const ExecutiveSummary = ({
   const riskDesc = overall==="CRITICAL"?"Immediate executive action required. Critical vulnerabilities present significant business risk.":overall==="HIGH"?"Significant vulnerabilities require urgent attention within 30 days.":"Moderate risk identified. Address findings per the recommended timeline.";
 
   return (
-    <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:0,minHeight:"60vh"}}>  
+    <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:-20,minHeight:"60vh",marginTop:0}}>  
       {/* ── Executive header ─────────────────────────────────────────── */}
       <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#1e3a5f 60%,${BLUE} 100%)`,padding:"20px 32px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16,borderRadius:"10px 10px 0 0"}}>
         <div>
@@ -1051,24 +1051,33 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
           </nav>
 
           {/* ── Main content ─────────────────────────────────────────────── */}
-          <div ref={scrollContainerRef} style={{flex:1,padding:"20px 24px",overflowY:"auto",display:"flex",flexDirection:"column",gap:20,maxHeight:"calc(100vh - 120px)"}}>
-            {structured?(
-              <>
-                <ExecutiveSummary data={structured} projectName={projectName} onPrint={printExecSummary}/>
-                <OverviewSection data={structured} projectName={projectName}/>
-                <AttckMapSection findings={findings} frameworks={fw} onFindingClick={setSelectedFinding}/>
-                <KillChainSection killChains={killChains}/>
-                <FindingsSection findings={findings} onFindingClick={setSelectedFinding}/>
-                <RiskMatrixSection findings={findings}/>
-                <RecommendationsSection recs={recs}/>
-                <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
-              </>
-            ):(
-              <div style={{padding:48,textAlign:"center",color:"#94a3b8",fontSize:13,background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
-                <i className="fas fa-file-circle-question" style={{fontSize:28,color:"#CBD5E1"}}/>
-                <span>No structured data available. Run a new assessment with the latest prompt version.</span>
-              </div>
-            )}
+          <div ref={scrollContainerRef} style={{flex:1,padding:"0",overflowY:"auto",display:"flex",flexDirection:"column",gap:20,maxHeight:"calc(100vh - 120px)",paddingBottom:"24px"}}>
+            <div style={{padding:"0 24px",paddingTop:"20px"}}>
+              {structured?(
+                <>
+                  <ExecutiveSummary data={structured} projectName={projectName} onPrint={printExecSummary}/>
+                  <div style={{height:20}}/>
+                  <OverviewSection data={structured} projectName={projectName}/>
+                  <div style={{height:20}}/>
+                  <AttckMapSection findings={findings} frameworks={fw} onFindingClick={setSelectedFinding}/>
+                  <div style={{height:20}}/>
+                  <KillChainSection killChains={killChains}/>
+                  <div style={{height:20}}/>
+                  <FindingsSection findings={findings} onFindingClick={setSelectedFinding}/>
+                  <div style={{height:20}}/>
+                  <RiskMatrixSection findings={findings}/>
+                  <div style={{height:20}}/>
+                  <RecommendationsSection recs={recs}/>
+                  <div style={{height:20}}/>
+                  <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
+                </>
+              ):(
+                <div style={{padding:48,textAlign:"center",color:"#94a3b8",fontSize:13,background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+                  <i className="fas fa-file-circle-question" style={{fontSize:28,color:"#CBD5E1"}}/>
+                  <span>No structured data available. Run a new assessment with the latest prompt version.</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
