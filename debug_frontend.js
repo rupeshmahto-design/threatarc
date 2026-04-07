@@ -32,7 +32,7 @@
     console.error('❌ Could not find assessment ID in URL!');
     console.log('💡 Fetching all reports...');
     
-    const reportsResp = await fetch('/api/reports', {
+    const reportsResp = await fetch('/reports', {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -53,7 +53,7 @@
   
   console.log('\n🔍 Fetching structured data for assessment', assessmentId);
   
-  const response = await fetch(`/api/reports/${assessmentId}/structured`, {
+  const response = await fetch(`/reports/${assessmentId}/structured`, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -93,7 +93,7 @@
     // Test reprocess endpoint
     console.log('\n🔧 Testing reprocess endpoint...');
     try {
-      const reprocessResp = await fetch(`/api/reports/${assessmentId}/reprocess`, {
+      const reprocessResp = await fetch(`/reports/${assessmentId}/reprocess`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -117,5 +117,5 @@
     console.error('❌ No structured data in response!');
   }
   
-  console.log(`\n💡 To reprocess manually, run:\nfetch('/api/reports/${assessmentId}/reprocess', {method:'POST',headers:{'Authorization':'Bearer ${token}','Content-Type':'application/json'}}).then(r=>r.json()).then(console.log)`);
+  console.log(`\n💡 To reprocess manually, run:\nfetch('/reports/${assessmentId}/reprocess', {method:'POST',headers:{'Authorization':'Bearer ${token}','Content-Type':'application/json'}}).then(r=>r.json()).then(console.log)`);
 })();
