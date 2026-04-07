@@ -531,7 +531,14 @@ const KillChainSection = ({killChains}:{killChains:KillChain[]}) => {
   );
 };
 
-const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFindingClick:(f:Finding)=>void}) => {
+const FindingsSection = ({findings,onFindingClick,highlightedFinding,activeFilter,onClearFilter,onTechniqueClick}:{
+  findings:Finding[];
+  onFindingClick:(f:Finding)=>void;
+  highlightedFinding:string|null;
+  activeFilter:{type:"component"|"recommendation"|"technique"|null;value:string|null};
+  onClearFilter:()=>void;
+  onTechniqueClick:(techniqueId:string)=>void;
+}) => {
   const [filter,setFilter]=useState("ALL");
   const [search,setSearch]=useState("");
   const [sortCol,setSortCol]=useState(5);
@@ -542,12 +549,29 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
     let list=findings;
     if(filter!=="ALL") list=list.filter(f=>f.severity===filter);
     if(search){const q=search.toLowerCase();list=list.filter(f=>f.title.toLowerCase().includes(q)||(f.technique_id||"").toLowerCase().includes(q)||(f.owner||"").toLowerCase().includes(q)||(f.tactic||"").toLowerCase().includes(q)||f.id.toLowerCase().includes(q));}
+    // Apply active filter
+    if(activeFilter.type==="technique"&&activeFilter.value){
+      list=list.filter(f=>f.technique_id===activeFilter.value);
+    }
     const cols=["id","title","tactic","technique_id","severity","risk_score","owner","timeline"];
     return [...list].sort((a,b)=>{const av=(a as any)[cols[sortCol]]??"";const bv=(b as any)[cols[sortCol]]??"";const cmp=String(av).localeCompare(String(bv),undefined,{numeric:true});return sortAsc?cmp:-cmp;});
-  },[findings,filter,search,sortCol,sortAsc]);
+  },[findings,filter,search,sortCol,sortAsc,activeFilter]);
   return (
     <section id="findings" style={SS.section}>
-      <SecHeader num="04" title={`All Findings — ${findings.length} Total`} sub="Click any row for evidence, scores &amp; mitigation steps  ·  Sort by column  ·  Filter by severity"/>
+      <SecHeader num="04" title={`All Findings — ${findings.length} Total`} sub="Click any row for evidence · Sort columns · Filter severity · Click techniques to filter"/>
+      {activeFilter.type&&activeFilter.value&&(
+        <div style={{marginBottom:12,padding:"10px 14px",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <i className="fas fa-filter" style={{fontSize:11,color:"#2563eb"}}/>
+            <span style={{fontSize:12,fontWeight:600,color:"#1e40af"}}>
+              Filtering by {activeFilter.type}: <strong>{activeFilter.value}</strong>
+            </span>
+          </div>
+          <button onClick={onClearFilter} style={{padding:"5px 10px",borderRadius:6,border:"1px solid #2563eb",background:"white",color:"#2563eb",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+            <i className="fas fa-xmark" style={{fontSize:10}}/>Clear Filter
+          </button>
+        </div>
+      )}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search findings, techniques, owners…" style={{flex:1,minWidth:200,padding:"8px 12px",border:"1px solid #e2e8f0",borderRadius:8,fontFamily:"inherit",fontSize:12,outline:"none",background:"#f8f9fb"}}/>
         {(["ALL","CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>(
@@ -570,11 +594,19 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
               </tr>
             </thead>
             <tbody>
-              {filtered.map((f,i)=>(
+              {filtered.map((f,i)=>{
+                const isHighlighted=highlightedFinding===f.id;
+                return (
                 <tr key={f.id} onClick={()=>onFindingClick(f)}
-                  style={{background:"#fff",cursor:"pointer",transition:"background .1s",borderLeft:`4px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`}}
-                  onMouseOver={e=>{e.currentTarget.style.background=SEV_BG[f.severity]||"#eff6ff";}}
-                  onMouseOut={e=>{e.currentTarget.style.background="#fff";}}>
+                  style={{
+                    background:isHighlighted?"#fef3c7":"#fff",
+                    cursor:"pointer",
+                    transition:"all .4s ease-out",
+                    borderLeft:`4px solid ${SEV_COLOR[f.severity]||"#e2e8f0"}`,
+                    animation:isHighlighted?"pulse-highlight 1.5s ease-in-out 2":"none"
+                  }}
+                  onMouseOver={e=>{if(!isHighlighted)e.currentTarget.style.background=SEV_BG[f.severity]||"#eff6ff";}}
+                  onMouseOut={e=>{e.currentTarget.style.background=isHighlighted?"#fef3c7":"#fff";}}>
                   <td style={{padding:"12px 12px",whiteSpace:"nowrap"}}>
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#2563eb",fontWeight:800}}>{f.id}</div>
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8",marginTop:2}}>{f.priority}</div>
@@ -587,7 +619,27 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
                     <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#475569",fontWeight:600,background:"#f1f5f9",padding:"2px 6px",borderRadius:4,display:"inline-block",whiteSpace:"nowrap"}}>{f.tactic||"—"}</div>
                   </td>
                   <td style={{padding:"12px 12px"}}>
-                    <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#2563eb",fontWeight:700,background:"#eff6ff",padding:"2px 6px",borderRadius:4,border:"1px solid #bfdbfe",display:"inline-block"}}>{f.technique_id||"—"}</div>
+                    <button
+                      onClick={(e)=>{e.stopPropagation();if(f.technique_id)onTechniqueClick(f.technique_id);}}
+                      style={{
+                        fontFamily:"'JetBrains Mono',monospace",
+                        fontSize:9,
+                        color:"#2563eb",
+                        fontWeight:700,
+                        background:"#eff6ff",
+                        padding:"2px 6px",
+                        borderRadius:4,
+                        border:"1px solid #bfdbfe",
+                        display:"inline-block",
+                        cursor:f.technique_id?"pointer":"default",
+                        transition:"all 0.15s"
+                      }}
+                      onMouseEnter={(e)=>{if(f.technique_id){e.currentTarget.style.background="#2563eb";e.currentTarget.style.color="white";}}}
+                      onMouseLeave={(e)=>{e.currentTarget.style.background="#eff6ff";e.currentTarget.style.color="#2563eb";}}
+                      disabled={!f.technique_id}
+                    >
+                      {f.technique_id||"—"}
+                    </button>
                   </td>
                   <td style={{padding:"12px 12px"}}><Pill sev={f.severity}/></td>
                   <td style={{padding:"12px 12px"}}>
@@ -609,7 +661,8 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
                       padding:"3px 7px",borderRadius:6,border:"1px solid #fde68a",whiteSpace:"nowrap",display:"inline-block"}}>{f.timeline||"—"}</div>
                   </td>
                 </tr>
-                            ))}
+              );
+            })}
             </tbody>
           </table>
         </div>
@@ -954,6 +1007,8 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const [activeView,setActiveView]=useState<"report"|"raw">("report");
   const [printMode,setPrintMode]=useState(false);
   const [observerEnabled,setObserverEnabled]=useState(false);
+  const [highlightedFinding,setHighlightedFinding]=useState<string|null>(null);
+  const [activeFilter,setActiveFilter]=useState<{type:"component"|"recommendation"|"technique"|null;value:string|null}>({type:null,value:null});
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const tok=token||localStorage.getItem("token")||localStorage.getItem("access_token")||"";
@@ -1051,6 +1106,10 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     const finding=findings.find(f=>f.id===findingId);
     if(!finding) return;
     
+    // Clear any active filter and flash the finding
+    setActiveFilter({type:null,value:null});
+    setHighlightedFinding(findingId);
+    
     // Scroll to findings section first
     const container=scrollContainerRef.current;
     const el=document.getElementById("findings");
@@ -1061,10 +1120,76 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
       container.scrollTo({top:offset,behavior:"smooth"});
       
       // Open modal after scroll animation
-      setTimeout(()=>setSelectedFinding(finding),400);
+      setTimeout(()=>{
+        setSelectedFinding(finding);
+        // Remove highlight after modal opens
+        setTimeout(()=>setHighlightedFinding(null),2000);
+      },400);
     } else {
       // If can't scroll, just open modal
       setSelectedFinding(finding);
+      setTimeout(()=>setHighlightedFinding(null),2000);
+    }
+  },[findings]);
+
+  // Filter findings by technique
+  const filterByTechnique=useCallback((techniqueId:string)=>{
+    setActiveFilter({type:"technique",value:techniqueId});
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("findings");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+    }
+  },[]);
+
+  // Filter findings by component
+  const filterByComponent=useCallback((componentName:string)=>{
+    setActiveFilter({type:"component",value:componentName});
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("findings");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+    }
+  },[]);
+
+  // Filter findings by recommendation
+  const filterByRecommendation=useCallback((recId:string)=>{
+    setActiveFilter({type:"recommendation",value:recId});
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("findings");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+    }
+  },[]);
+
+  // Bulk add findings to action plan
+  const bulkAddToActionPlan=useCallback((findingIds:string[])=>{
+    const newItems=findingIds
+      .map(fid=>findings.find(f=>f.id===fid))
+      .filter((f):f is Finding=>!!f)
+      .map(f=>({id:f.id,title:f.title,severity:f.severity,timeline:f.timeline,assignee:f.owner||"",dueDate:"",status:"Open" as const,notes:""}));
+    setActionPlanItems(prev=>{
+      const existing=new Set(prev.map(p=>p.id));
+      const toAdd=newItems.filter(n=>!existing.has(n.id));
+      return [...prev,...toAdd];
+    });
+    // Navigate to action plan
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("action-plan");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
     }
   },[findings]);
 
@@ -1116,7 +1241,15 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
 
   return (
     <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:PAGE_BG}}>
-      <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}*{box-sizing:border-box;}@media print{nav,button,.no-print{display:none!important;}}`}</style>
+      <style>{`
+        @keyframes rv-spin{to{transform:rotate(360deg);}}
+        @keyframes pulse-highlight{
+          0%,100%{background-color:#fff;}
+          50%{background-color:#fef3c7;}
+        }
+        *{box-sizing:border-box;}
+        @media print{nav,button,.no-print{display:none!important;}}
+      `}</style>
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#152d54 100%)`,borderRadius:"12px 12px 0 0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
@@ -1214,7 +1347,14 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                   <div style={{height:20}}/>
                   <KillChainSection killChains={killChains}/>
                   <div style={{height:20}}/>
-                  <FindingsSection findings={findings} onFindingClick={setSelectedFinding}/>
+                  <FindingsSection 
+                    findings={findings} 
+                    onFindingClick={setSelectedFinding}
+                    highlightedFinding={highlightedFinding}
+                    activeFilter={activeFilter}
+                    onClearFilter={()=>setActiveFilter({type:null,value:null})}
+                    onTechniqueClick={filterByTechnique}
+                  />
                   <div style={{height:20}}/>
                   <RiskMatrixSection findings={findings}/>
                   <div style={{height:20}}/>
