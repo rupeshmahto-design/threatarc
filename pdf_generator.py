@@ -452,18 +452,35 @@ def generate_pdf(report_content: str, project_name: str,
     story.append(PageBreak())
 
     # ── Parse & render report content ───────────────────────────────────────
-    lines       = report_content.split('\n')
-    tbl_rows    = []
-    in_table    = False
-    in_code     = False
-    code_lines  = []
+    lines        = report_content.split('\n')
+    tbl_rows     = []
+    in_table     = False
+    in_code      = False
+    code_lines   = []
+    heading_buf  = []   # pending H1/H2 items kept with next content
+
+    def flush_heading(extra=None):
+        """Push buffered heading + optional first-content into story via KeepTogether."""
+        nonlocal heading_buf
+        if not heading_buf:
+            if extra is not None:
+                story.append(extra)
+            return
+        group = heading_buf + ([extra] if extra is not None else [])
+        story.append(KeepTogether(group))
+        heading_buf = []
 
     def flush_table():
         nonlocal tbl_rows, in_table
         if tbl_rows:
             t = create_professional_table(tbl_rows)
             if t:
-                story.append(KeepTogether([t, Spacer(1, 0.1 * inch)]))
+                flush_heading(t)
+                story.append(Spacer(1, 0.1 * inch))
+            else:
+                flush_heading()
+        else:
+            flush_heading()
         tbl_rows = []
         in_table = False
 
@@ -471,7 +488,6 @@ def generate_pdf(report_content: str, project_name: str,
         nonlocal code_lines, in_code
         if code_lines:
             text = '\n'.join(code_lines)
-            # strip non-ASCII
             text = re.sub(r'[^\x00-\x7F]', '', text)
             story.append(Paragraph(text.replace('\n', '<br/>'), styles['mono']))
         code_lines = []
@@ -505,23 +521,20 @@ def generate_pdf(report_content: str, project_name: str,
             story.append(Spacer(1, 0.08 * inch))
             continue
 
-        # H1
+        # H1 — buffer with divider so it stays with following content
         if re.match(r'^# [^#]', line):
             flush_table()
             text = re.sub(r'^# ', '', line)
             text = re.sub(r'[^\x00-\x7F]', '', text).strip()
-            story.append(SectionDivider(color=NAVY))
-            story.append(Spacer(1, 0.05 * inch))
-            story.append(Paragraph(text, styles['h1']))
+            heading_buf = [SectionDivider(color=NAVY), Spacer(1, 0.05 * inch), Paragraph(text, styles['h1'])]
             continue
 
-        # H2
+        # H2 — buffer so heading never orphans from its table/paragraph
         if re.match(r'^## [^#]', line):
             flush_table()
             text = re.sub(r'^## ', '', line)
             text = re.sub(r'[^\x00-\x7F]', '', text).strip()
-            story.append(Paragraph(text, styles['h2']))
-            story.append(SectionDivider(color=BLUE, height=0.5))
+            heading_buf = [Paragraph(text, styles['h2']), SectionDivider(color=BLUE, height=0.5)]
             continue
 
         # H3
@@ -551,16 +564,17 @@ def generate_pdf(report_content: str, project_name: str,
             text = re.sub(r'^[\-\*\+] ', '', line)
             text = re.sub(r'^\d+\. ', '', text)
             text = _inline_md(text)
-            story.append(Paragraph(f'\u2022  {text}', styles['bullet']))
+            flush_heading(Paragraph(f'\u2022  {text}', styles['bullet']))
             continue
 
         # Regular paragraph
         flush_table()
         text = _inline_md(line)
-        story.append(Paragraph(text, styles['body']))
+        flush_heading(Paragraph(text, styles['body']))
 
     # Flush remainders
     flush_table()
+    flush_heading()
     flush_code()
 
     # ── Build PDF ────────────────────────────────────────────────────────────
