@@ -2,8 +2,9 @@
  * ReportViewer.tsx  v4.0 — Professional Enterprise Edition
  */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import ComponentSpecificSection from "./ComponentSpecificSection";
-import SpecializedRiskSection from "./SpecializedRiskSection";
+// Temporarily commented out to fix circular dependency
+// import ComponentSpecificSection from "./ComponentSpecificSection";
+// import SpecializedRiskSection from "./SpecializedRiskSection";
 
 interface Finding {
   id: string; title: string;
@@ -94,8 +95,9 @@ const NAV_ITEMS = [
   {id:"findings",      faIcon:"fa-magnifying-glass", label:"All Findings"},
   {id:"risk-matrix",   faIcon:"fa-table-cells",     label:"Risk Priority Matrix"},
   {id:"recommendations",faIcon:"fa-shield-halved",  label:"Recommendations"},
-  {id:"specialized",   faIcon:"fa-bullseye",        label:"Specialized Risks"},
-  {id:"components",    faIcon:"fa-cubes",           label:"Component Analysis"},
+  // Temporarily disabled - circular dependency
+  // {id:"specialized",   faIcon:"fa-bullseye",        label:"Specialized Risks"},
+  // {id:"components",    faIcon:"fa-cubes",           label:"Component Analysis"},
   {id:"action-plan",   faIcon:"fa-list-check",      label:"Action Plan"},
 ];
 
@@ -1220,6 +1222,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                   <div style={{height:20}}/>
                   <RecommendationsSection recs={recs} onFindingClick={navigateToFinding}/>
                   <div style={{height:20}}/>
+                  {/* Temporarily disabled - circular dependency issue
                   <section id="specialized" style={SS.section}>
                     <SecHeader num="08" title="Specialized Risk Assessments" sub={`${(structured.specialized_risks||[]).length} specialized domains analyzed`}/>
                     <SpecializedRiskSection risks={structured.specialized_risks||[]} onFindingClick={navigateToFinding}/>
@@ -1230,6 +1233,7 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                     <ComponentSpecificSection components={structured.component_analysis||[]} onFindingClick={navigateToFinding}/>
                   </section>
                   <div style={{height:20}}/>
+                  */}
                   <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
                 </>
               ):(
