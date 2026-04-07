@@ -240,7 +240,8 @@ def _extract_component_analysis_from_markdown(markdown: str) -> List[Dict[str, A
         "verbatim_quote": "Gateway exposed on public internet",
         "critical_threats": "Unauthenticated access, DDoS, injection attacks",
         "risk_level": "CRITICAL",
-        "mitigation_priority": "P0"
+        "mitigation_priority": "P0",
+        "finding_refs": ["F001", "F003"]  # extracted from context
     }
     """
     components = []
@@ -274,6 +275,9 @@ def _extract_component_analysis_from_markdown(markdown: str) -> List[Dict[str, A
         # Skip header rows
         if component_name.lower() in ["component", "---", ""]:
             continue
+        
+        # Extract finding references from surrounding context
+        finding_refs = re.findall(r'\b(F\d{3})\b', threats + quote + priority)
             
         components.append({
             "component": component_name,
@@ -281,7 +285,8 @@ def _extract_component_analysis_from_markdown(markdown: str) -> List[Dict[str, A
             "verbatim_quote": quote,
             "critical_threats": threats,
             "risk_level": risk_level,
-            "mitigation_priority": priority
+            "mitigation_priority": priority,
+            "finding_refs": list(set(finding_refs))  # deduplicate
         })
     
     logger.info(f"📦 Extracted {len(components)} components from markdown")
@@ -371,10 +376,14 @@ def _extract_specialized_risks_from_markdown(markdown: str) -> List[Dict[str, An
                 else:
                     severity = "LOW"
                 
+                # Try to extract finding reference from label
+                finding_match = re.search(r'\b(F\d{3})\b', label)
+                
                 findings.append({
                     "label": label,
                     "value": value,
-                    "severity": severity
+                    "severity": severity,
+                    "finding_ref": finding_match.group(1) if finding_match else None
                 })
         
         # Assign icon based on domain name

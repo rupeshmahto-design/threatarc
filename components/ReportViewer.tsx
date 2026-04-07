@@ -30,11 +30,12 @@ interface ComponentAnalysis {
   critical_threats: string;
   risk_level: string;
   mitigation_priority: string;
+  finding_refs?: string[];
 }
 interface SpecializedRisk {
   domain: string;
   icon: string;
-  findings: Array<{label: string; value: string; severity: string}>;
+  findings: Array<{label: string; value: string; severity: string; finding_ref?: string}>;
   summary: string;
   grade: string;
 }
@@ -675,7 +676,7 @@ const RiskMatrixSection = ({findings}:{findings:Finding[]}) => {
   );
 };
 
-const RecCard = ({rec}:{rec:Recommendation}) => {
+const RecCard = ({rec,onFindingClick}:{rec:Recommendation;onFindingClick:(fid:string)=>void}) => {
   const [open,setOpen]=useState(false);
   const pc={P0:"#dc2626",P1:"#ea580c",P2:"#d97706"}[rec.priority]||"#64748b";
   const pb={P0:"#fef2f2",P1:"#fff7ed",P2:"#fffbeb"}[rec.priority]||"#f1f5f9";
@@ -700,9 +701,30 @@ const RecCard = ({rec}:{rec:Recommendation}) => {
             {(rec.steps||[]).map((s,i)=><li key={i} style={{fontSize:12,color:"#475569",marginBottom:5,lineHeight:1.5}}>{s}</li>)}
           </ol>
           {(rec.addresses_findings||[]).length>0&&(
-            <div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>
+            <div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
               <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",fontWeight:600}}>Addresses:</span>
-              {rec.addresses_findings!.map(fid=><span key={fid} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,color:"#2563eb",background:"#eff6ff",padding:"2px 6px",borderRadius:4,border:"1px solid #bfdbfe"}}>{fid}</span>)}
+              {rec.addresses_findings!.map(fid=>(
+                <button
+                  key={fid}
+                  onClick={(e)=>{e.stopPropagation();onFindingClick(fid);}}
+                  style={{
+                    fontFamily:"'JetBrains Mono',monospace",
+                    fontSize:9,
+                    fontWeight:700,
+                    color:"#2563eb",
+                    background:"#eff6ff",
+                    padding:"3px 8px",
+                    borderRadius:4,
+                    border:"1px solid #bfdbfe",
+                    cursor:"pointer",
+                    transition:"all 0.15s"
+                  }}
+                  onMouseOver={(e)=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.color="white";}}
+                  onMouseOut={(e)=>{e.currentTarget.style.background="#eff6ff";e.currentTarget.style.color="#2563eb";}}
+                >
+                  {fid} →
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -711,13 +733,13 @@ const RecCard = ({rec}:{rec:Recommendation}) => {
   );
 };
 
-const RecommendationsSection = ({recs}:{recs:Recommendation[]}) => {
+const RecommendationsSection = ({recs,onFindingClick}:{recs:Recommendation[];onFindingClick:(fid:string)=>void}) => {
   const [ap,setAp]=useState("P0");
   const p0=recs.filter(r=>r.priority==="P0"),p1=recs.filter(r=>r.priority==="P1"),p2=recs.filter(r=>r.priority==="P2");
   const shown=ap==="P0"?p0:ap==="P1"?p1:p2;
   return (
     <section id="recommendations" style={SS.section}>
-      <SecHeader num="06" title="Prioritized Recommendations" sub="Ordered by risk reduction potential · Click to expand steps"/>
+      <SecHeader num="06" title="Prioritized Recommendations" sub="Ordered by risk reduction potential · Click finding IDs to jump"/>
       <div style={{display:"flex",gap:6,marginBottom:16}}>
         {[["P0",p0.length,"#dc2626"],["P1",p1.length,"#ea580c"],["P2",p2.length,"#d97706"]].map(([pri,count,color])=>(
           <button key={pri as string} onClick={()=>setAp(pri as string)} style={{padding:"8px 16px",borderRadius:8,border:"1px solid #e2e8f0",background:ap===pri?color as string:"#fff",color:ap===pri?"#fff":"#475569",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
@@ -727,7 +749,7 @@ const RecommendationsSection = ({recs}:{recs:Recommendation[]}) => {
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {shown.length===0&&<div style={{padding:32,textAlign:"center",color:"#94a3b8",fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}><i className="fas fa-shield-halved" style={{fontSize:24,color:"#CBD5E1"}}/><span>No {ap} recommendations generated.</span></div>}
-        {shown.map((r,i)=><RecCard key={r.id||i} rec={r}/>)}
+        {shown.map((r,i)=><RecCard key={r.id||i} rec={r} onFindingClick={onFindingClick}/>)}
       </div>
     </section>
   );
@@ -792,7 +814,21 @@ const ActionPlanSection = ({findings,items,setItems,onSave,saving,saved}:{findin
   );
 };
 
-const FindingModal = ({finding,onClose,onAddToActionPlan}:{finding:Finding;onClose:()=>void;onAddToActionPlan:(f:Finding)=>void}) => (
+const FindingModal = ({
+  finding,
+  onClose,
+  onAddToActionPlan,
+  relatedRecs,
+  relatedComponents,
+  relatedSpecialized
+}:{
+  finding:Finding;
+  onClose:()=>void;
+  onAddToActionPlan:(f:Finding)=>void;
+  relatedRecs:Recommendation[];
+  relatedComponents:ComponentAnalysis[];
+  relatedSpecialized:Array<{domain:string;finding:string}>;
+}) => (
   <div onClick={e=>{if(e.target===e.currentTarget)onClose();}} style={{position:"fixed",inset:0,background:"rgba(15,23,42,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}}>
     <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:600,maxHeight:"85vh",overflow:"auto",boxShadow:"0 24px 64px rgba(15,23,42,.25)"}}>
       <div style={{padding:"20px 24px 16px",borderBottom:"1px solid #f1f5f9",position:"sticky",top:0,background:"#fff",zIndex:1}}>
@@ -843,6 +879,53 @@ const FindingModal = ({finding,onClose,onAddToActionPlan}:{finding:Finding;onClo
             </ol>
           </div>
         )}
+        
+        {/* Reverse References */}
+        {(relatedRecs.length>0 || relatedComponents.length>0 || relatedSpecialized.length>0)&&(
+          <div style={{marginBottom:20,background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"14px 16px"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#2563eb",textTransform:"uppercase",fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+              <i className="fas fa-link" style={{fontSize:9}}/>
+              Referenced In
+            </div>
+            {relatedRecs.length>0&&(
+              <div style={{marginBottom:relatedComponents.length>0||relatedSpecialized.length>0?10:0}}>
+                <div style={{fontSize:10,color:"#475569",marginBottom:4,fontWeight:600}}>{relatedRecs.length} Recommendation{relatedRecs.length!==1?"s":""}:</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {relatedRecs.map(r=>(
+                    <span key={r.id} style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#16a34a",background:"#f0fdf4",padding:"2px 6px",borderRadius:4,border:"1px solid #bbf7d0"}}>
+                      {r.id} {r.priority}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {relatedComponents.length>0&&(
+              <div style={{marginBottom:relatedSpecialized.length>0?10:0}}>
+                <div style={{fontSize:10,color:"#475569",marginBottom:4,fontWeight:600}}>{relatedComponents.length} Component{relatedComponents.length!==1?"s":""}:</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {relatedComponents.map(c=>(
+                    <span key={c.component} style={{fontSize:10,color:"#0f172a",background:"#f8fafc",padding:"2px 8px",borderRadius:4,border:"1px solid #e2e8f0"}}>
+                      {c.component}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {relatedSpecialized.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:"#475569",marginBottom:4,fontWeight:600}}>{relatedSpecialized.length} Specialized Risk{relatedSpecialized.length!==1?"s":""}:</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {relatedSpecialized.map((s,i)=>(
+                    <span key={i} style={{fontSize:10,color:"#0f172a",background:"#f8fafc",padding:"2px 8px",borderRadius:4,border:"1px solid #e2e8f0"}}>
+                      {s.domain}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
         <button onClick={()=>{onAddToActionPlan(finding);onClose();}} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:BLUE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
           <i className="fas fa-plus" style={{fontSize:11}}/>Add to Action Plan
         </button>
@@ -962,6 +1045,29 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
     }
   },[]);
 
+  // Navigate to a finding by ID (from recommendation/component links)
+  const navigateToFinding=useCallback((findingId:string)=>{
+    // Find the finding object
+    const finding=findings.find(f=>f.id===findingId);
+    if(!finding) return;
+    
+    // Scroll to findings section first
+    const container=scrollContainerRef.current;
+    const el=document.getElementById("findings");
+    if(container&&el){
+      const containerRect=container.getBoundingClientRect();
+      const elRect=el.getBoundingClientRect();
+      const offset=elRect.top-containerRect.top+container.scrollTop-16;
+      container.scrollTo({top:offset,behavior:"smooth"});
+      
+      // Open modal after scroll animation
+      setTimeout(()=>setSelectedFinding(finding),400);
+    } else {
+      // If can't scroll, just open modal
+      setSelectedFinding(finding);
+    }
+  },[findings]);
+
   if(loading) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 20px",background:"#F0F4F9",borderRadius:12,border:"1px solid #E2E8F0"}}>
       <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${BLUE}`,borderRadius:"50%",animation:"rv-spin 0.8s linear infinite"}}/>
@@ -983,6 +1089,30 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const recs=structured?.all_recommendations||[];
   const killChains=structured?.kill_chains||[];
   const fw=structured?.frameworks_used||[];
+
+  // Compute reverse references for the selected finding
+  const reverseRefs=useMemo(()=>{
+    if(!selectedFinding||!structured) return {recs:[],components:[],specialized:[]};
+    const fid=selectedFinding.id;
+    
+    // Find recommendations that address this finding
+    const relatedRecs=recs.filter(r=>(r.addresses_findings||[]).includes(fid));
+    
+    // Find components that reference this finding
+    const relatedComponents=(structured.component_analysis||[]).filter(c=>(c.finding_refs||[]).includes(fid));
+    
+    // Find specialized risks that reference this finding
+    const relatedSpecialized:Array<{domain:string;finding:string}>=[];
+    (structured.specialized_risks||[]).forEach(risk=>{
+      risk.findings.forEach(f=>{
+        if(f.finding_ref===fid){
+          relatedSpecialized.push({domain:risk.domain,finding:f.label});
+        }
+      });
+    });
+    
+    return {recs:relatedRecs,components:relatedComponents,specialized:relatedSpecialized};
+  },[selectedFinding,structured,recs]);
 
   return (
     <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:PAGE_BG}}>
@@ -1088,16 +1218,16 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                   <div style={{height:20}}/>
                   <RiskMatrixSection findings={findings}/>
                   <div style={{height:20}}/>
-                  <RecommendationsSection recs={recs}/>
+                  <RecommendationsSection recs={recs} onFindingClick={navigateToFinding}/>
                   <div style={{height:20}}/>
                   <section id="specialized" style={SS.section}>
                     <SecHeader num="08" title="Specialized Risk Assessments" sub={`${(structured.specialized_risks||[]).length} specialized domains analyzed`}/>
-                    <SpecializedRiskSection risks={structured.specialized_risks||[]}/>
+                    <SpecializedRiskSection risks={structured.specialized_risks||[]} onFindingClick={navigateToFinding}/>
                   </section>
                   <div style={{height:20}}/>
                   <section id="components" style={SS.section}>
                     <SecHeader num="09" title="Component-Specific Threat Analysis" sub={`${(structured.component_analysis||[]).length} architectural components assessed`}/>
-                    <ComponentSpecificSection components={structured.component_analysis||[]} onAddToPlan={(comp)=>{console.log("Add component to plan:",comp);}}/>
+                    <ComponentSpecificSection components={structured.component_analysis||[]} onFindingClick={navigateToFinding}/>
                   </section>
                   <div style={{height:20}}/>
                   <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
@@ -1113,7 +1243,14 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
         </div>
       )}
 
-      {selectedFinding&&<FindingModal finding={selectedFinding} onClose={()=>setSelectedFinding(null)} onAddToActionPlan={addToActionPlan}/>}
+      {selectedFinding&&<FindingModal 
+        finding={selectedFinding} 
+        onClose={()=>setSelectedFinding(null)} 
+        onAddToActionPlan={addToActionPlan}
+        relatedRecs={reverseRefs.recs}
+        relatedComponents={reverseRefs.components}
+        relatedSpecialized={reverseRefs.specialized}
+      />}
     </div>
   );
 };

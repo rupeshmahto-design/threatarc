@@ -7,16 +7,17 @@ interface ComponentAnalysis {
   critical_threats: string;
   risk_level: string;
   mitigation_priority: string;
+  finding_refs?: string[];
 }
 
 interface ComponentSpecificSectionProps {
   components: ComponentAnalysis[];
-  onAddToPlan?: (component: ComponentAnalysis) => void;
+  onFindingClick?: (findingId: string) => void;
 }
 
 const ComponentSpecificSection: React.FC<ComponentSpecificSectionProps> = ({ 
   components = [],
-  onAddToPlan 
+  onFindingClick 
 }) => {
   if (!components || components.length === 0) {
     return (
@@ -243,39 +244,50 @@ const ComponentSpecificSection: React.FC<ComponentSpecificSectionProps> = ({
             </div>
           </div>
 
-          {/* Add to Plan Button */}
-          {onAddToPlan && (
+          {/* Finding References */}
+          {comp.finding_refs && comp.finding_refs.length > 0 && onFindingClick && (
             <div style={{ padding: '12px 18px', background: 'white', borderTop: '1px solid #e2e8f0' }}>
-              <button
-                onClick={() => onAddToPlan(comp)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  width: '100%',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  fontFamily: 'JetBrains Mono, monospace',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  border: '1px solid #3b82f6',
-                  background: '#eff6ff',
-                  color: '#2563eb'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#2563eb';
-                  e.currentTarget.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#eff6ff';
-                  e.currentTarget.style.color = '#2563eb';
-                }}
-              >
-                + Add to Action Plan
-              </button>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: '9px',
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                fontWeight: 600,
+                marginBottom: '8px'
+              }}>
+                Related Findings:
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {comp.finding_refs.map((fid) => (
+                  <button
+                    key={fid}
+                    onClick={() => onFindingClick(fid)}
+                    style={{
+                      fontFamily: 'JetBrains Mono, monospace',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      color: '#2563eb',
+                      background: '#eff6ff',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #bfdbfe',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#2563eb';
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.color = '#2563eb';
+                    }}
+                  >
+                    {fid} →
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

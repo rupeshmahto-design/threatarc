@@ -4,6 +4,7 @@ interface SpecializedFinding {
   label: string;
   value: string;
   severity: string;
+  finding_ref?: string;
 }
 
 interface SpecializedRisk {
@@ -16,12 +17,12 @@ interface SpecializedRisk {
 
 interface SpecializedRiskSectionProps {
   risks: SpecializedRisk[];
-  onViewDetails?: (risk: SpecializedRisk, finding: SpecializedFinding) => void;
+  onFindingClick?: (findingId: string) => void;
 }
 
 const SpecializedRiskSection: React.FC<SpecializedRiskSectionProps> = ({ 
   risks = [],
-  onViewDetails 
+  onFindingClick 
 }) => {
   if (!risks || risks.length === 0) {
     return (
@@ -167,17 +168,20 @@ const SpecializedRiskSection: React.FC<SpecializedRiskSectionProps> = ({
                   padding: '10px 12px',
                   background: '#f8fafc',
                   borderRadius: '6px',
-                  cursor: onViewDetails ? 'pointer' : 'default',
-                  transition: 'all 0.1s'
+                  cursor: finding.finding_ref && onFindingClick ? 'pointer' : 'default',
+                  transition: 'all 0.1s',
+                  border: finding.finding_ref ? '1px solid #e2e8f0' : 'none'
                 }}
-                onClick={() => onViewDetails && onViewDetails(risk, finding)}
+                onClick={() => finding.finding_ref && onFindingClick && onFindingClick(finding.finding_ref)}
                 onMouseEnter={(e) => {
-                  if (onViewDetails) {
-                    e.currentTarget.style.background = '#f1f5f9';
+                  if (finding.finding_ref && onFindingClick) {
+                    e.currentTarget.style.background = '#eff6ff';
+                    e.currentTarget.style.borderColor = '#bfdbfe';
                   }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
                 }}
               >
                 <span style={{
@@ -188,6 +192,16 @@ const SpecializedRiskSection: React.FC<SpecializedRiskSectionProps> = ({
                   fontFamily: 'JetBrains Mono, monospace'
                 }}>
                   {finding.label}
+                  {finding.finding_ref && (
+                    <span style={{
+                      fontSize: '9px',
+                      color: '#2563eb',
+                      marginLeft: '6px',
+                      fontWeight: 700
+                    }}>
+                      ({finding.finding_ref})
+                    </span>
+                  )}
                 </span>
                 <span style={{
                   fontSize: '11px',
