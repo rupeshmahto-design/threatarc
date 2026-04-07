@@ -1,5 +1,5 @@
 /**
- * ReportViewer.tsx  v3.0 — Pure React, no iframe
+ * ReportViewer.tsx  v4.0 — Professional Enterprise Edition
  */
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
@@ -37,9 +37,17 @@ interface ReportViewerProps {
   apiBase?: string; onActionPlanSave?: (items: ActionPlanItem[]) => void;
 }
 
-const SEV_COLOR: Record<string,string> = {CRITICAL:"#dc2626",HIGH:"#ea580c",MEDIUM:"#d97706",LOW:"#16a34a"};
-const SEV_BG:    Record<string,string> = {CRITICAL:"#fef2f2",HIGH:"#fff7ed",MEDIUM:"#fffbeb",LOW:"#f0fdf4"};
-const SEV_BORDER:Record<string,string> = {CRITICAL:"#fecaca",HIGH:"#fed7aa",MEDIUM:"#fde68a",LOW:"#bbf7d0"};
+// ── Design tokens ────────────────────────────────────────────────────────────
+const NAVY        = "#0B1E3D";
+const NAVY_HOVER  = "#152d54";
+const BLUE        = "#1D4ED8";
+const BLUE_TINT   = "#EFF6FF";
+const BLUE_BORDER = "#BFDBFE";
+const PAGE_BG     = "#F0F4F9";
+
+const SEV_COLOR: Record<string,string> = {CRITICAL:"#DC2626",HIGH:"#EA580C",MEDIUM:"#D97706",LOW:"#16A34A"};
+const SEV_BG:    Record<string,string> = {CRITICAL:"#FEF2F2",HIGH:"#FFF7ED",MEDIUM:"#FFFBEB",LOW:"#F0FDF4"};
+const SEV_BORDER:Record<string,string> = {CRITICAL:"#FECACA",HIGH:"#FED7AA",MEDIUM:"#FDE68A",LOW:"#BBF7D0"};
 
 const MITRE_TACTICS = [
   {id:"TA0001",short:"Initial Access"},{id:"TA0002",short:"Execution"},
@@ -50,35 +58,35 @@ const MITRE_TACTICS = [
   {id:"TA0011",short:"Exfiltration"},{id:"TA0012",short:"Impact"},
 ];
 
-const PHASE_ICONS: Record<string,string> = {
-  "Initial Access":"📧","Execution":"💥","Persistence":"🧠",
-  "Privilege Escalation":"⬆️","Defense Evasion":"🛡️","Credential Access":"🔑",
-  "Discovery":"🗺","Lateral Movement":"↔️","Collection":"📦",
-  "Command and Control":"📡","Exfiltration":"🚀","Impact":"💥",
-  "Weaponize":"🔧","Deliver":"📤","Exploit":"💣","Install":"⚙️","Cover":"🕶️","C2":"📡",
+const PHASE_LABELS: Record<string,string> = {
+  "Initial Access":"ACC","Execution":"EXEC","Persistence":"PRST",
+  "Privilege Escalation":"PRIV","Defense Evasion":"EVDN","Credential Access":"CRED",
+  "Discovery":"DISC","Lateral Movement":"LATR","Collection":"COLL",
+  "Command and Control":"C2","Exfiltration":"EXFL","Impact":"IMPT",
+  "Weaponize":"WPNZ","Deliver":"DLVR","Exploit":"EXPL","Install":"INST","Cover":"COVR","C2":"C2",
 };
 
 const NAV_ITEMS = [
-  {id:"exec-summary",icon:"🎯",label:"Executive Summary"},
-  {id:"overview",icon:"📋",label:"Overview"},
-  {id:"attck-map",icon:"🗺",label:"ATT&CK Map"},
-  {id:"kill-chain",icon:"⛓",label:"Kill Analysis"},
-  {id:"findings",icon:"🔍",label:"All Findings"},
-  {id:"risk-matrix",icon:"📊",label:"Risk Matrix"},
-  {id:"recommendations",icon:"✅",label:"Recommendations"},
-  {id:"action-plan",icon:"📋",label:"Action Plan"},
+  {id:"exec-summary",  faIcon:"fa-chart-line",     label:"Executive Summary"},
+  {id:"overview",      faIcon:"fa-layer-group",     label:"Overview & Scorecard"},
+  {id:"attck-map",     faIcon:"fa-crosshairs",      label:"MITRE ATT\u0026CK Map"},
+  {id:"kill-chain",    faIcon:"fa-link",             label:"Kill Chain Analysis"},
+  {id:"findings",      faIcon:"fa-magnifying-glass", label:"All Findings"},
+  {id:"risk-matrix",   faIcon:"fa-table-cells",     label:"Risk Priority Matrix"},
+  {id:"recommendations",faIcon:"fa-shield-halved",  label:"Recommendations"},
+  {id:"action-plan",   faIcon:"fa-list-check",      label:"Action Plan"},
 ];
 
 const Pill = ({sev}:{sev:string}) => (
-  <span style={{display:"inline-flex",alignItems:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"3px 8px",borderRadius:10,textTransform:"uppercase",letterSpacing:0.3,whiteSpace:"nowrap",background:SEV_BG[sev]||"#f1f5f9",color:SEV_COLOR[sev]||"#475569",border:`1px solid ${SEV_BORDER[sev]||"#e2e8f0"}`}}>{sev}</span>
+  <span style={{display:"inline-flex",alignItems:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:800,padding:"2px 8px",borderRadius:4,textTransform:"uppercase",letterSpacing:0.8,whiteSpace:"nowrap",background:SEV_BG[sev]||"#F1F5F9",color:SEV_COLOR[sev]||"#475569",border:`1px solid ${SEV_BORDER[sev]||"#E2E8F0"}`}}>{sev}</span>
 );
 
 const SecHeader = ({num,title,sub}:{num:string;title:string;sub:string}) => (
-  <div style={{display:"flex",alignItems:"flex-start",gap:16,marginBottom:24}}>
-    <div style={{minWidth:36,height:36,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:"#15803d"}}>{num}</div>
-    <div>
-      <div style={{fontSize:18,fontWeight:800,color:"#0f172a",letterSpacing:-0.4}}>{title}</div>
-      <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{sub}</div>
+  <div style={{display:"flex",alignItems:"flex-start",gap:16,marginBottom:28}}>
+    <div style={{minWidth:40,height:40,background:NAVY,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0,letterSpacing:-0.5}}>{num}</div>
+    <div style={{borderLeft:"3px solid "+BLUE,paddingLeft:14}}>
+      <div style={{fontSize:19,fontWeight:800,color:"#0F172A",letterSpacing:-0.5,lineHeight:1.2}}>{title}</div>
+      <div style={{fontSize:11.5,color:"#64748B",marginTop:4,fontFamily:"'JetBrains Mono',monospace",letterSpacing:0.1}}>{sub}</div>
     </div>
   </div>
 );
@@ -126,29 +134,37 @@ const ExecutiveSummary = ({
 
   return (
     <section id="exec-summary" style={{background:"#fff",borderRadius:16,border:"2px solid #1d4ed8",overflow:"hidden",boxShadow:"0 4px 24px rgba(29,78,216,.15)",scrollMarginTop:16}}>
-      {/* Dark gradient header */}
-      <div style={{background:"linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#1d4ed8 100%)",padding:"28px 32px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
+      {/* ── Executive header ─────────────────────────────────────────── */}
+      <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#1e3a5f 60%,${BLUE} 100%)`,padding:"28px 32px",display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16,borderRadius:"10px 10px 0 0"}}>
         <div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"rgba(255,255,255,.5)",textTransform:"uppercase",letterSpacing:2,fontWeight:600,marginBottom:8}}>SECURITY EXECUTIVE BRIEFING · CONFIDENTIAL</div>
-          <h1 style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,lineHeight:1.2,marginBottom:6}}>Threat Assessment Report</h1>
-          <div style={{fontSize:13,color:"rgba(255,255,255,.65)"}}>{projectName} · {data.assessment_date}</div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:2.5,fontWeight:600}}>SECURITY EXECUTIVE BRIEFING</div>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,padding:"2px 8px",borderRadius:3,background:"#EF4444",color:"#fff",letterSpacing:0.8}}>CONFIDENTIAL</span>
+          </div>
+          <h1 style={{fontSize:24,fontWeight:900,color:"#fff",letterSpacing:-0.6,lineHeight:1.2,marginBottom:6}}>Threat Assessment Report</h1>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.6)",display:"flex",alignItems:"center",gap:8}}>
+            <i className="fas fa-building" style={{fontSize:11}}/>
+            {projectName}&nbsp;&middot;&nbsp;{data.assessment_date}
+          </div>
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-          <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderRadius:12,padding:"10px 20px",textAlign:"center"}}>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:SEV_COLOR[overall],textTransform:"uppercase",fontWeight:700,letterSpacing:1,marginBottom:4}}>Overall Rating</div>
-            <div style={{fontSize:24,fontWeight:900,color:SEV_COLOR[overall]}}>{overall}</div>
+          <div style={{background:"rgba(255,255,255,.08)",border:`1px solid ${SEV_BORDER[overall]}`,borderRadius:10,padding:"12px 22px",textAlign:"center",backdropFilter:"blur(4px)"}}>
+            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:SEV_COLOR[overall],textTransform:"uppercase",fontWeight:700,letterSpacing:1.5,marginBottom:5}}>Overall Risk</div>
+            <div style={{fontSize:22,fontWeight:900,color:SEV_COLOR[overall],letterSpacing:-0.5}}>{overall}</div>
           </div>
-          <button onClick={onPrint} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🖨 Print One-Pager</button>
+          <button onClick={onPrint} style={{padding:"10px 16px",borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:7}}>
+            <i className="fas fa-print" style={{fontSize:11}}/>Print One-Pager
+          </button>
         </div>
       </div>
 
       <div style={{padding:"24px 32px"}}>
         {/* Risk banner */}
-        <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderLeft:`4px solid ${SEV_COLOR[overall]}`,borderRadius:10,padding:"12px 18px",display:"flex",gap:12,alignItems:"center",marginBottom:24}}>
-          <span style={{fontSize:20}}>{overall==="CRITICAL"?"🚨":overall==="HIGH"?"⚠️":"ℹ️"}</span>
+        <div style={{background:SEV_BG[overall],border:`1px solid ${SEV_BORDER[overall]}`,borderLeft:`4px solid ${SEV_COLOR[overall]}`,borderRadius:8,padding:"12px 18px",display:"flex",gap:14,alignItems:"center",marginBottom:24}}>
+          <i className={`fas ${overall==="CRITICAL"?"fa-circle-exclamation":overall==="HIGH"?"fa-triangle-exclamation":"fa-info-circle"}`} style={{fontSize:20,color:SEV_COLOR[overall],flexShrink:0}}/>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:800,color:SEV_COLOR[overall],marginBottom:2}}>{overall} RISK — {overall==="CRITICAL"?"Immediate action required":"Action required"}</div>
-            <div style={{fontSize:12,color:"#475569"}}>{riskDesc}</div>
+            <div style={{fontSize:12,fontWeight:800,color:SEV_COLOR[overall],marginBottom:3,textTransform:"uppercase",letterSpacing:0.4}}>{overall} Risk &mdash; {overall==="CRITICAL"?"Immediate Executive Action Required":"Urgent Action Required"}</div>
+            <div style={{fontSize:12,color:"#475569",lineHeight:1.5}}>{riskDesc}</div>
           </div>
           <div style={{textAlign:"center",flexShrink:0,background:"#fff",border:`1px solid ${SEV_BORDER[overall]}`,borderRadius:10,padding:"8px 16px"}}>
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:28,fontWeight:900,color:SEV_COLOR[overall]}}>{riskPct}%</div>
@@ -158,8 +174,8 @@ const ExecutiveSummary = ({
 
         {/* 4 severity counters */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
-          {([["CRITICAL","🔴"],["HIGH","🟠"],["MEDIUM","🟡"],["LOW","🟢"]] as const).map(([s,icon])=>(
-            <div key={s} style={{background:SEV_BG[s],border:`1px solid ${SEV_BORDER[s]}`,borderTop:`3px solid ${SEV_COLOR[s]}`,borderRadius:12,padding:"16px",textAlign:"center"}}>
+          {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map((s)=>(
+            <div key={s} style={{background:SEV_BG[s],border:`1px solid ${SEV_BORDER[s]}`,borderTop:`3px solid ${SEV_COLOR[s]}`,borderRadius:10,padding:"16px",textAlign:"center"}}>
               <div style={{fontSize:28,fontWeight:900,color:SEV_COLOR[s],lineHeight:1,fontFamily:"'JetBrains Mono',monospace"}}>{sev[s]||0}</div>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:SEV_COLOR[s],textTransform:"uppercase",fontWeight:700,marginTop:4}}>{s}</div>
               <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:2}}>findings</div>
@@ -170,7 +186,10 @@ const ExecutiveSummary = ({
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:24}}>
           {/* Top 5 findings */}
           <div>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12}}>🔍 Top {top5.length} Priority Findings</div>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:12}}>
+            <i className="fas fa-magnifying-glass" style={{fontSize:10,color:"#94a3b8"}}/>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5}}>Top {top5.length} Priority Findings</span>
+          </div>
             <div style={{border:"1px solid #e2e8f0",borderRadius:10,overflow:"hidden"}}>
               {top5.length===0?(
                 <div style={{padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:12}}>Run a new assessment to populate findings.</div>
@@ -194,7 +213,10 @@ const ExecutiveSummary = ({
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             {/* Immediate actions */}
             <div>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:10}}>⚡ Immediate Actions (0–30 Days)</div>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+                <i className="fas fa-bolt" style={{fontSize:10,color:"#94a3b8"}}/>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5}}>Immediate Actions (0–30 Days)</span>
+              </div>
               {top3Recs.length>0?(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {top3Recs.map((r,i)=>(
@@ -216,7 +238,10 @@ const ExecutiveSummary = ({
             </div>
             {/* Risk distribution */}
             <div style={{padding:"14px 16px",background:"#f8f9fb",borderRadius:10,border:"1px solid #e2e8f0"}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Risk Distribution</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                <i className="fas fa-chart-pie" style={{fontSize:9,color:"#94a3b8"}}/>
+                <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600}}>Risk Distribution</span>
+              </div>
               {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>{
                 const count=sev[s]||0;
                 const pct=findings.length>0?Math.round(count/findings.length*100):0;
@@ -292,7 +317,10 @@ const OverviewSection = ({data,projectName}:{data:StructuredData;projectName:str
       </div>
       {/* Tactic scorecards */}
       <div style={{marginTop:8}}>
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5,marginBottom:12}}>Security Posture by Tactic</div>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:12}}>
+          <i className="fas fa-shield-halved" style={{fontSize:10,color:"#94a3b8"}}/>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5}}>Security Posture by Tactic</span>
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}}>
           {Object.entries(
             (data.all_findings||[]).reduce((acc:{[k:string]:{worst:string;count:number}},f)=>{
@@ -370,7 +398,9 @@ const AttckMapSection = ({findings,frameworks,onFindingClick}:{findings:Finding[
           })}
         </div>
       </div>
-      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",marginTop:10,textAlign:"right"}}>← Scroll to view all {tactics.length} tactics → · {covered}/{tactics.length} tactics covered · Click any cell to open finding</div>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",marginTop:10,textAlign:"right",display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+        <i className="fas fa-arrows-left-right" style={{fontSize:9}}/>Scroll to view all {tactics.length} tactics&nbsp;&nbsp;|&nbsp;&nbsp;{covered}/{tactics.length} covered&nbsp;&nbsp;|&nbsp;&nbsp;<i className="fas fa-arrow-pointer" style={{fontSize:9}}/>Click cell to open finding
+      </div>
     </section>
   );
 };
@@ -403,7 +433,7 @@ const AttackPathSVG = ({kc}:{kc:KillChain}) => {
             const sev=(ph.severity||"HIGH");
             const stroke=SEV_COLOR[sev]||scoreColor;
             const fill=SEV_BG[sev]||"#fff7ed";
-            const icon=PHASE_ICONS[ph.phase]||"▶";
+            const label=PHASE_LABELS[ph.phase]||ph.phase.slice(0,4).toUpperCase();
             const nameShort=ph.phase.slice(0,12)+(ph.phase.length>12?"…":"");
             const techShort=(ph.technique_id||"").slice(0,10);
             const detShort=(ph.detection_window||"").slice(0,14);
@@ -412,10 +442,10 @@ const AttackPathSVG = ({kc}:{kc:KillChain}) => {
                 {i>0&&<line x1={startX+nodeR+(i-1)*(nodeR*2+gap)+nodeR} y1={cy} x2={cx-nodeR-4} y2={cy} stroke={stroke} strokeWidth="1.5" opacity="0.6" markerEnd="url(#rv-arr)"/>}
                 <circle cx={cx} cy={cy} r={nodeR} fill="white" stroke={stroke} strokeWidth="2"/>
                 <circle cx={cx} cy={cy} r={nodeR-6} fill={fill}/>
-                <text x={cx} y={cy+6} textAnchor="middle" fontSize="18">{icon}</text>
-                <text x={cx} y={cy+nodeR+16} textAnchor="middle" fill={stroke} fontSize="9" fontFamily="JetBrains Mono" fontWeight="600">{nameShort}</text>
-                {techShort&&<text x={cx} y={cy+nodeR+27} textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="JetBrains Mono">{techShort}</text>}
-                {detShort&&<text x={cx} y={cy+nodeR+38} textAnchor="middle" fill={stroke} fontSize="8" fontFamily="JetBrains Mono" fontWeight="600">{detShort}</text>}
+                <text x={cx} y={cy+4} textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="800" fill={stroke}>{label}</text>
+                <text x={cx} y={cy+nodeR+16} textAnchor="middle" fill={stroke} fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="600">{nameShort}</text>
+                {techShort&&<text x={cx} y={cy+nodeR+27} textAnchor="middle" fill="#94a3b8" fontSize="8" fontFamily="JetBrains Mono, monospace">{techShort}</text>}
+                {detShort&&<text x={cx} y={cy+nodeR+38} textAnchor="middle" fill={stroke} fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">{detShort}</text>}
               </g>
             );
           })}
@@ -430,7 +460,10 @@ const KillChainSection = ({killChains}:{killChains:KillChain[]}) => {
   if(!killChains||!killChains.length) return (
     <section id="kill-chain" style={SS.section}>
       <SecHeader num="03" title="Kill Chain Analysis" sub="No attack scenarios for this assessment"/>
-      <div style={{padding:40,textAlign:"center",color:"#94a3b8",fontSize:13}}>No kill chain data. Run a new assessment.</div>
+      <div style={{padding:40,textAlign:"center",color:"#94a3b8",fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+        <i className="fas fa-link" style={{fontSize:24,color:"#CBD5E1"}}/>
+        <span>No kill chain data. Run a new assessment.</span>
+      </div>
     </section>
   );
   const kc=killChains[active];
@@ -448,7 +481,10 @@ const KillChainSection = ({killChains}:{killChains:KillChain[]}) => {
       )}
       <AttackPathSVG kc={kc}/>
       <div style={{marginTop:20}}>
-        <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",letterSpacing:0.5,fontWeight:600,marginBottom:10}}>Phase-by-Phase Analysis with Detection Windows</div>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+          <i className="fas fa-list-check" style={{fontSize:9,color:"#94a3b8"}}/>
+          <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",letterSpacing:0.5,fontWeight:600}}>Phase-by-Phase Analysis with Detection Windows</span>
+        </div>
         <div style={{border:"1px solid #e2e8f0",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(15,23,42,.06)"}}>
           {(kc.phases||[]).map((ph,i)=>{
             const det=ph.detection_window||"";
@@ -457,8 +493,10 @@ const KillChainSection = ({killChains}:{killChains:KillChain[]}) => {
               <div key={i} style={{display:"flex",borderBottom:i<kc.phases.length-1?"1px solid #f1f5f9":"none"}}
                 onMouseOver={e=>(e.currentTarget.style.background="#f8f9fb")}
                 onMouseOut={e=>(e.currentTarget.style.background="")}>
-                <div style={{width:36,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:11,fontWeight:700,color:"#94a3b8",flexShrink:0,borderRight:"1px solid #f1f5f9",background:"#f8f9fb"}}>{String(i+1).padStart(2,"0")}</div>
-                <div style={{width:44,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,borderRight:"1px solid #f1f5f9",flexShrink:0}}>{PHASE_ICONS[ph.phase]||"▶"}</div>
+                <div style={{width:40,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:700,color:"#94a3b8",flexShrink:0,borderRight:"1px solid #f1f5f9",background:"#f8f9fb"}}>{String(i+1).padStart(2,"0")}</div>
+                <div style={{width:52,display:"flex",alignItems:"center",justifyContent:"center",borderRight:"1px solid #f1f5f9",flexShrink:0}}>
+                  <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:7,fontWeight:800,padding:"2px 4px",borderRadius:3,background:SEV_BG[ph.severity||"HIGH"],color:SEV_COLOR[ph.severity||"HIGH"],border:`1px solid ${SEV_BORDER[ph.severity||"HIGH"]}`}}>{PHASE_LABELS[ph.phase]||ph.phase.slice(0,4).toUpperCase()}</span>
+                </div>
                 <div style={{flex:1,padding:"10px 14px"}}>
                   <div style={{fontSize:12,fontWeight:800,color:"#0f172a",marginBottom:2}}>{ph.phase}</div>
                   {ph.technique_id&&<div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#2563eb",fontWeight:600,marginBottom:4}}>{ph.technique_id}</div>}
@@ -495,7 +533,7 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
   },[findings,filter,search,sortCol,sortAsc]);
   return (
     <section id="findings" style={SS.section}>
-      <SecHeader num="04" title={`All Findings — ${findings.length} Total`} sub="Click any row to open full detail · Sort by column · Filter by severity"/>
+      <SecHeader num="04" title={`All Findings — ${findings.length} Total`} sub="Click any row for evidence, scores &amp; mitigation steps  ·  Sort by column  ·  Filter by severity"/>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search findings, techniques, owners…" style={{flex:1,minWidth:200,padding:"8px 12px",border:"1px solid #e2e8f0",borderRadius:8,fontFamily:"inherit",fontSize:12,outline:"none",background:"#f8f9fb"}}/>
         {(["ALL","CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>(
@@ -504,7 +542,7 @@ const FindingsSection = ({findings,onFindingClick}:{findings:Finding[];onFinding
           </button>
         ))}
       </div>
-      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#64748b",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>Showing {filtered.length} of {findings.length} findings</span><span style={{color:"#94a3b8"}}>← Click any row to see evidence, scores & mitigation steps</span></div>
+      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#64748b",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>Showing {filtered.length} of {findings.length} findings</span><span style={{color:"#94a3b8",display:"flex",alignItems:"center",gap:5}}><i className="fas fa-arrow-pointer" style={{fontSize:9}}/>Click any row to view detail</span></div>
       <div style={{border:"1px solid #e2e8f0",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 3px rgba(15,23,42,.06)"}}>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -640,7 +678,7 @@ const RecCard = ({rec}:{rec:Recommendation}) => {
             {rec.owner&&<span style={{color:"#94a3b8"}}> · {rec.owner}</span>}
           </div>
         </div>
-        <span style={{color:"#94a3b8",fontSize:14}}>{open?"▲":"▼"}</span>
+        <i className={`fas ${open?"fa-chevron-up":"fa-chevron-down"}`} style={{color:"#94a3b8",fontSize:11}}/>
       </div>
       {open&&(rec.steps||[]).length>0&&(
         <div style={{padding:"0 18px 14px",borderTop:"1px solid #f1f5f9"}}>
@@ -675,7 +713,7 @@ const RecommendationsSection = ({recs}:{recs:Recommendation[]}) => {
         ))}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {shown.length===0&&<div style={{padding:32,textAlign:"center",color:"#94a3b8",fontSize:13}}>No {ap} recommendations generated.</div>}
+        {shown.length===0&&<div style={{padding:32,textAlign:"center",color:"#94a3b8",fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}><i className="fas fa-shield-halved" style={{fontSize:24,color:"#CBD5E1"}}/><span>No {ap} recommendations generated.</span></div>}
         {shown.map((r,i)=><RecCard key={r.id||i} rec={r}/>)}
       </div>
     </section>
@@ -692,11 +730,11 @@ const ActionPlanSection = ({findings,items,setItems,onSave,saving,saved}:{findin
   const sc:Record<string,string>={"Open":"#dc2626","In Progress":"#ea580c","Complete":"#16a34a","Deferred":"#94a3b8"};
   return (
     <section id="action-plan" style={SS.section}>
-      <SecHeader num="07" title="Action Plan Builder" sub="Select findings · assign owners · set due dates · track status"/>
+      <SecHeader num="07" title="Action Plan Builder" sub="Select findings  ·  Assign owners  ·  Set due dates  ·  Track status"/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontSize:13,color:"#475569"}}><strong>{items.length}</strong> item{items.length!==1?"s":""} in action plan</div>
         <button onClick={onSave} disabled={saving} style={{padding:"8px 18px",borderRadius:8,border:"none",background:saved?"#16a34a":"#2563eb",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-          {saving?"Saving…":saved?"✓ Saved!":"💾 Save Action Plan"}
+          {saving?<><i className="fas fa-circle-notch fa-spin" style={{fontSize:11}}/>Saving…</>:saved?<><i className="fas fa-check" style={{fontSize:11}}/>Saved!</>:<><i className="fas fa-floppy-disk" style={{fontSize:11}}/>Save Action Plan</>}
         </button>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -750,7 +788,7 @@ const FindingModal = ({finding,onClose,onAddToActionPlan}:{finding:Finding;onClo
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:11,color:"#2563eb",fontWeight:700}}>{finding.id}</span>
             <Pill sev={finding.severity}/>
           </div>
-          <button onClick={onClose} style={{width:28,height:28,borderRadius:8,border:"1px solid #e2e8f0",background:"#f8f9fb",cursor:"pointer",fontSize:14,color:"#475569",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          <button onClick={onClose} style={{width:28,height:28,borderRadius:8,border:"1px solid #e2e8f0",background:"#f8f9fb",cursor:"pointer",fontSize:12,color:"#475569",display:"flex",alignItems:"center",justifyContent:"center"}}><i className="fas fa-xmark"/></button>
         </div>
         <h3 style={{fontSize:16,fontWeight:800,color:"#0f172a",marginTop:8,lineHeight:1.3}}>{finding.title}</h3>
         <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:"#94a3b8",marginTop:4}}>{finding.tactic} · {finding.technique_id} · {finding.doc_source}</div>
@@ -792,14 +830,16 @@ const FindingModal = ({finding,onClose,onAddToActionPlan}:{finding:Finding;onClo
             </ol>
           </div>
         )}
-        <button onClick={()=>{onAddToActionPlan(finding);onClose();}} style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:"#2563eb",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ Add to Action Plan</button>
+        <button onClick={()=>{onAddToActionPlan(finding);onClose();}} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:BLUE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          <i className="fas fa-plus" style={{fontSize:11}}/>Add to Action Plan
+        </button>
       </div>
     </div>
   </div>
 );
 
 const SS:Record<string,React.CSSProperties> = {
-  section:{background:"#ffffff",borderRadius:16,border:"1px solid #e2e8f0",padding:"28px 28px",boxShadow:"0 1px 3px rgba(15,23,42,.06)",scrollMarginTop:16},
+  section:{background:"#ffffff",borderRadius:12,border:"1px solid #E2E8F0",padding:"32px",boxShadow:"0 2px 10px rgba(11,30,61,.07)",scrollMarginTop:16},
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -906,17 +946,17 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   },[]);
 
   if(loading) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 20px",background:"#f8f9fb",borderRadius:16,border:"1px solid #e2e8f0"}}>
-      <div style={{width:36,height:36,border:"3px solid #e2e8f0",borderTop:"3px solid #2563eb",borderRadius:"50%",animation:"rv-spin 0.8s linear infinite"}}/>
-      <p style={{color:"#64748b",fontSize:14,marginTop:14}}>Loading interactive report…</p>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"80px 20px",background:"#F0F4F9",borderRadius:12,border:"1px solid #E2E8F0"}}>
+      <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${BLUE}`,borderRadius:"50%",animation:"rv-spin 0.8s linear infinite"}}/>
+      <p style={{color:"#475569",fontSize:13,marginTop:16,fontFamily:"'JetBrains Mono',monospace",letterSpacing:0.3}}>Loading assessment report…</p>
       <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}`}</style>
     </div>
   );
 
   if(error) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 20px",background:"#fef2f2",borderRadius:12,border:"1px solid #fecaca"}}>
-      <span style={{fontSize:24}}>⚠️</span>
-      <p style={{color:"#dc2626",fontSize:13,marginTop:8}}>{error}</p>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 20px",background:"#FEF2F2",borderRadius:12,border:"1px solid #FECACA"}}>
+      <i className="fas fa-triangle-exclamation" style={{fontSize:20,color:"#DC2626"}}/>
+      <p style={{color:"#DC2626",fontSize:13,marginTop:10,fontWeight:600}}>{error}</p>
     </div>
   );
 
@@ -928,53 +968,59 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   const fw=structured?.frameworks_used||[];
 
   return (
-    <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:"#f8f9fb"}}>
+    <div style={{fontFamily:"'Epilogue','Inter',sans-serif",background:PAGE_BG}}>
       <style>{`@keyframes rv-spin{to{transform:rotate(360deg);}}*{box-sizing:border-box;}@media print{nav,button,.no-print{display:none!important;}}`}</style>
 
-      {/* Top bar */}
-      <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"16px 16px 0 0",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12,boxShadow:"0 1px 3px rgba(15,23,42,.06)"}}>
-        <div>
-          <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",letterSpacing:-0.4}}>🛡 Threat Assessment Report</h2>
-          <p style={{fontSize:13,color:"#64748b",marginTop:3}}>{projectName} · <span style={{color:SEV_COLOR[overall]||"#ea580c",fontWeight:700}}>{overall}</span> · {findings.length} findings</p>
-        </div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-          <button onClick={()=>setActiveView(v=>v==="report"?"raw":"report")} style={{padding:"8px 14px",borderRadius:8,border:"1px solid #cbd5e1",background:"#fff",color:"#475569",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {activeView==="report"?"📄 Raw Report":"📊 Interactive"}
-          </button>
-          <button onClick={downloadPdf} disabled={pdfLoading} style={{padding:"8px 16px",borderRadius:8,border:"none",background:"#0f172a",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-            {pdfLoading?"⏳ Generating…":"⬇ Download PDF"}
-          </button>
-        </div>
-      </div>
-
-      {/* Stats bar */}
-      <div style={{display:"flex",gap:1,background:"#e2e8f0",borderBottom:"1px solid #e2e8f0"}}>
-        {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>(
-          <div key={s} style={{flex:1,textAlign:"center",padding:"10px 8px",background:"#fff",borderTop:`3px solid ${SEV_COLOR[s]}`}}>
-            <div style={{fontSize:20,fontWeight:900,color:SEV_COLOR[s],lineHeight:1}}>{sev[s]||0}</div>
-            <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8",marginTop:2,textTransform:"uppercase"}}>{s}</div>
+      {/* ── Top bar ─────────────────────────────────────────────────────── */}
+      <div style={{background:`linear-gradient(135deg,${NAVY} 0%,#152d54 100%)`,borderRadius:"12px 12px 0 0",padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        {/* Left: brand + title */}
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:36,height:36,background:BLUE,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <i className="fas fa-shield-halved" style={{color:"#fff",fontSize:16}}/>
           </div>
-        ))}
-        <div style={{flex:1,textAlign:"center",padding:"10px 8px",background:"#fff",borderTop:"3px solid #2563eb"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#2563eb",lineHeight:1}}>{findings.filter(f=>f.priority==="P0").length}</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8",marginTop:2,textTransform:"uppercase"}}>P0 Immediate</div>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+              <h2 style={{fontSize:15,fontWeight:800,color:"#fff",letterSpacing:-0.3,margin:0}}>Threat Assessment Report</h2>
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:3,background:"#EF4444",color:"#fff",letterSpacing:0.8}}>CONFIDENTIAL</span>
+            </div>
+            <p style={{fontSize:12,color:"rgba(255,255,255,.6)",margin:0}}>{projectName}&nbsp;&middot;&nbsp;<span style={{color:SEV_COLOR[overall]||"#EA580C",fontWeight:700}}>{overall} RISK</span>&nbsp;&middot;&nbsp;{findings.length} findings</p>
+          </div>
         </div>
-        <div style={{flex:1,textAlign:"center",padding:"10px 8px",background:"#fff",borderTop:"3px solid #7c3aed"}}>
-          <div style={{fontSize:20,fontWeight:900,color:"#7c3aed",lineHeight:1}}>{recs.length}</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"#94a3b8",marginTop:2,textTransform:"uppercase"}}>Recs</div>
+        {/* Right: actions */}
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          {/* Severity chips */}
+          <div style={{display:"flex",gap:4,marginRight:4}}>
+            {(["CRITICAL","HIGH","MEDIUM","LOW"] as const).map(s=>(
+              <div key={s} style={{textAlign:"center",padding:"4px 10px",borderRadius:6,background:`rgba(255,255,255,.08)`,border:`1px solid rgba(255,255,255,.12)`}}>
+                <div style={{fontSize:14,fontWeight:900,color:SEV_COLOR[s],lineHeight:1}}>{sev[s]||0}</div>
+                <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:7,color:"rgba(255,255,255,.45)",textTransform:"uppercase",marginTop:1}}>{s.slice(0,4)}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>setActiveView(v=>v==="report"?"raw":"report")} style={{padding:"8px 14px",borderRadius:7,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.08)",color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+            <i className={`fas ${activeView==="report"?"fa-code":"fa-chart-bar"}`} style={{fontSize:11}}/>
+            {activeView==="report"?"Raw Markdown":"Interactive Report"}
+          </button>
+          <button onClick={downloadPdf} disabled={pdfLoading} style={{padding:"8px 16px",borderRadius:7,border:"none",background:BLUE,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6,opacity:pdfLoading?0.7:1}}>
+            <i className={`fas ${pdfLoading?"fa-circle-notch fa-spin":"fa-download"}`} style={{fontSize:11}}/>
+            {pdfLoading?"Generating PDF…":"Download PDF"}
+          </button>
         </div>
       </div>
 
       {activeView==="raw"?(
-        <div style={{background:"#0f172a",maxHeight:"80vh",overflow:"auto",borderRadius:"0 0 16px 16px"}}>
-          <pre style={{padding:24,margin:0,color:"#e2e8f0",fontSize:12,lineHeight:1.65,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{rawMarkdown}</pre>
+        <div style={{background:"#0F172A",maxHeight:"80vh",overflow:"auto",borderRadius:"0 0 12px 12px"}}>
+          <pre style={{padding:28,margin:0,color:"#E2E8F0",fontSize:12,lineHeight:1.7,fontFamily:"'JetBrains Mono',monospace",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{rawMarkdown}</pre>
         </div>
       ):(
-        <div style={{display:"flex",background:"#f8f9fb"}}>
-          {/* Left nav */}
-          <nav style={{width:210,flexShrink:0,background:"#fff",borderRight:"1px solid #e2e8f0",padding:"16px 0",position:"sticky",top:0,height:"calc(100vh - 140px)",overflowY:"auto",display:"flex",flexDirection:"column"}}>
-            <div style={{padding:"0 16px 12px",fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",textTransform:"uppercase",fontWeight:600,letterSpacing:0.5}}>Report Sections</div>
-            {NAV_ITEMS.map(item=>(
+        <div style={{display:"flex",background:PAGE_BG}}>
+          {/* ── Left sidebar ────────────────────────────────────────────── */}
+          <nav style={{width:220,flexShrink:0,background:NAVY,padding:"20px 0",position:"sticky",top:0,height:"calc(100vh - 120px)",overflowY:"auto",display:"flex",flexDirection:"column"}}>
+            {/* Section label */}
+            <div style={{padding:"0 16px 14px",fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"rgba(255,255,255,.3)",textTransform:"uppercase",fontWeight:600,letterSpacing:1.2}}>Report Sections</div>
+            {NAV_ITEMS.map(item=>{
+              const isActive=activeSection===item.id;
+              return (
               <a key={item.id} href={`#${item.id}`}
                 onClick={e=>{
   e.preventDefault();
@@ -992,23 +1038,24 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
   }
   setActiveSection(item.id);
 }}
-                style={{display:"flex",alignItems:"center",gap:10,padding:"9px 16px",fontSize:12,fontWeight:700,textDecoration:"none",transition:"all .1s",color:activeSection===item.id?"#2563eb":"#475569",background:activeSection===item.id?"#eff6ff":"transparent",borderLeft:activeSection===item.id?"3px solid #2563eb":"3px solid transparent"}}>
-                <span style={{fontSize:14}}>{item.icon}</span>
-                <span>{item.label}</span>
-                {item.id==="findings"&&findings.length>0&&<span style={{marginLeft:"auto",fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10,background:"#fef2f2",color:"#dc2626",border:"1px solid #fecaca"}}>{findings.length}</span>}
-                {item.id==="action-plan"&&actionPlanItems.length>0&&<span style={{marginLeft:"auto",fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10,background:"#eff6ff",color:"#2563eb",border:"1px solid #bfdbfe"}}>{actionPlanItems.length}</span>}
-                {item.id==="recommendations"&&recs.length>0&&<span style={{marginLeft:"auto",fontFamily:"'JetBrains Mono',monospace",fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:10,background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0"}}>{recs.length}</span>}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"9px 16px 9px 0",fontSize:12,fontWeight:600,textDecoration:"none",transition:"all .12s",color:isActive?"#fff":"rgba(255,255,255,.5)",background:isActive?"rgba(29,78,216,.25)":"transparent",borderLeft:isActive?`3px solid ${BLUE}`:"3px solid transparent",paddingLeft:13}}>
+                <i className={`fas ${item.faIcon}`} style={{fontSize:12,width:16,textAlign:"center",color:isActive?BLUE:"rgba(255,255,255,.35)",flexShrink:0}}/>
+                <span style={{flex:1,fontSize:11.5}}>{item.label}</span>
+                {item.id==="findings"&&findings.length>0&&<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,padding:"1px 6px",borderRadius:3,background:"rgba(220,38,38,.3)",color:"#FCA5A5",border:"1px solid rgba(220,38,38,.4)",marginRight:8}}>{findings.length}</span>}
+                {item.id==="action-plan"&&actionPlanItems.length>0&&<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,padding:"1px 6px",borderRadius:3,background:"rgba(29,78,216,.4)",color:"#93C5FD",border:"1px solid rgba(29,78,216,.5)",marginRight:8}}>{actionPlanItems.length}</span>}
+                {item.id==="recommendations"&&recs.length>0&&<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,fontWeight:700,padding:"1px 6px",borderRadius:3,background:"rgba(22,163,74,.25)",color:"#86EFAC",border:"1px solid rgba(22,163,74,.4)",marginRight:8}}>{recs.length}</span>}
               </a>
-            ))}
-            <div style={{marginTop:"auto",padding:"16px 16px 8px",borderTop:"1px solid #f1f5f9"}}>
-              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:"#94a3b8",lineHeight:1.6}}>
-                {projectName}<br/>{structured?.assessment_date}<br/>{fw.slice(0,2).join(", ")}<br/>Generated by ThreatVision AI
+            );})}
+            {/* Sidebar footer */}
+            <div style={{marginTop:"auto",padding:"16px",borderTop:"1px solid rgba(255,255,255,.06)"}}>
+              <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:"rgba(255,255,255,.25)",lineHeight:1.8,letterSpacing:0.2}}>
+                {projectName}<br/>{structured?.assessment_date}<br/>{fw.slice(0,2).join(" · ")}<br/>ThreatVision AI
               </div>
             </div>
           </nav>
 
-          {/* Main content */}
-          <div ref={scrollContainerRef} style={{flex:1,padding:"16px 20px",overflowY:"auto",display:"flex",flexDirection:"column",gap:16,maxHeight:"calc(100vh - 140px)"}}>
+          {/* ── Main content ─────────────────────────────────────────────── */}
+          <div ref={scrollContainerRef} style={{flex:1,padding:"20px 24px",overflowY:"auto",display:"flex",flexDirection:"column",gap:20,maxHeight:"calc(100vh - 120px)"}}>
             {structured?(
               <>
                 <ExecutiveSummary data={structured} projectName={projectName} onPrint={printExecSummary}/>
@@ -1021,8 +1068,9 @@ const ReportViewer:React.FC<ReportViewerProps> = ({assessmentId,projectName,toke
                 <ActionPlanSection findings={findings} items={actionPlanItems} setItems={setActionPlanItems} onSave={saveActionPlan} saving={apSaving} saved={apSaved}/>
               </>
             ):(
-              <div style={{padding:40,textAlign:"center",color:"#94a3b8",fontSize:13,background:"#fff",borderRadius:16,border:"1px solid #e2e8f0"}}>
-                No structured data available. Run a new assessment with the latest prompt version.
+              <div style={{padding:48,textAlign:"center",color:"#94a3b8",fontSize:13,background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+                <i className="fas fa-file-circle-question" style={{fontSize:28,color:"#CBD5E1"}}/>
+                <span>No structured data available. Run a new assessment with the latest prompt version.</span>
               </div>
             )}
           </div>
